@@ -10,6 +10,8 @@ using MbedTLS
 using JSON
 using AbstractTrees: children
 
+const commit_sig = LibGit2.Signature("femtocleaner[bot]", "femtocleaner[bot]@users.noreply.github.com")
+
 function clone_and_process(local_dir, repo_url)
     lrepo = LibGit2.clone(repo_url, local_dir)
     vers = Pkg.Reqs.parse(joinpath(local_dir, "REQUIRE"))
@@ -35,7 +37,7 @@ function apply_deprecations(repo, auth)
     try
         lrepo, changed_any = clone_and_process(local_dir, repo_url)
         if changed_any
-            LibGit2.commit(lrepo, "Fix deprecations")
+            LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
             LibGit2.push(lrepo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
             create_pull_request(repo, auth=auth, params = Dict(
                     :title => "Fix deprecations",
@@ -68,17 +70,20 @@ end
 
 include("interactions.jl")
 
-function event_callback(event)
+app_key = MbedTLS.PKContext()
+MbedTLS.parse_key!(app_key, ENV["FEMTOCLEANER_PRIVKEY"])
+
+function event_callback(app_key, event)
     # On installation, process every repository we just got installed into
     if event.kind == "installation"
-        jwt = GitHub.JWTAuth(4123, joinpath(Pkg.dir("FemtoCleaner"), "femtocleaner.2017-07-30.private-key.pem"))
+        jwt = GitHub.JWTAuth(4123, app_key)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories"]
             apply_deprecations(GitHub.repo(GitHub.Repo(repo)), auth)
         end
     elseif event.kind == "installation_repositories"
-        jwt = GitHub.JWTAuth(4123, joinpath(Pkg.dir("FemtoCleaner"), "femtocleaner.2017-07-30.private-key.pem"))
+        jwt = GitHub.JWTAuth(4123, app_key)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories_added"]
@@ -91,9 +96,11 @@ function event_callback(event)
 end
 
 function run_server()
+    app_key = MbedTLS.PKContext()
+    MbedTLS.parse_key!(app_key, ENV["FEMTOCLEANER_PRIVKEY"])
     listener = GitHub.EventListener() do event
         revise()
-        Base.invokelatest(event_callback, event)
+        Base.invokelatest(event_callback, app_key, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10423)
 end

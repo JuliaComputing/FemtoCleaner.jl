@@ -132,7 +132,7 @@ function pr_response(event)
                 end
                 LibGit2.add!(lrepo, relpath(path, local_dir))
             end
-            LibGit2.commit(lrepo, "Address review comments")
+            LibGit2.commit(lrepo, "Address review comments"; author=commit_sig, committer=commit_sig)
             LibGit2.push(lrepo, refspecs = ["HEAD:refs/heads/fbot/deps"])
         end
     end
