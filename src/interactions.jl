@@ -91,7 +91,7 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions)
     end
 end
 
-function pr_response(event)
+function pr_response(event, jwt, commit_sig)
     # New review on a pull request
     #   Was this pull request opened by us
     pr = PullRequest(event.payload["pull_request"])
@@ -100,7 +100,6 @@ function pr_response(event)
     r = GitHub.Review(pr, event.payload["review"])
     get(r.state) == "changes_requested" || return
     # Authenticate
-    jwt = GitHub.JWTAuth(4123, joinpath(Pkg.dir("FemtoCleaner"), "femtocleaner.2017-07-30.private-key.pem"))
     installation = Installation(event.payload["installation"])
     auth = create_access_token(installation, jwt)
     # Look through the comments for this review
