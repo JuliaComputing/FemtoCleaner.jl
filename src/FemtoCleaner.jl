@@ -67,8 +67,12 @@ function dry_run(repo_url)
 end
 
 include("interactions.jl")
+include("autodeployment.jl")
 
-function event_callback(app_key, app_id, commit_sig, event)
+const autodeployment_enabled = haskey(ENV, "FEMTOCLEANER_AUTODEPLOY") ?
+    ENV["FEMTOCLEANER_AUTODEPLOY"] == "yes" : false
+
+function event_callback(app_key, app_id, commit_sig, listener, event)
     # On installation, process every repository we just got installed into
     if event.kind == "installation"
         jwt = GitHub.JWTAuth(app_id, app_key)
@@ -87,6 +91,8 @@ function event_callback(app_key, app_id, commit_sig, event)
     elseif event.kind == "pull_request_review"
         jwt = GitHub.JWTAuth(app_id, app_key)
         pr_response(event, jwt, commit_sig)
+    elseif event.kind == "push"
+        return maybe_autdodeploy(event, listener, autodeployment_enabled)
     end
     return HttpCommon.Response(200)
 end
@@ -100,9 +106,10 @@ function run_server()
     jwt = GitHub.JWTAuth(app_id, app_key)
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
+    local listener
     listener = GitHub.EventListener(secret=secret) do event
         revise()
-        Base.invokelatest(event_callback, app_key, app_id, commit_sig, event)
+        Base.invokelatest(event_callback, app_key, app_id, commit_sig, listener, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
 end
