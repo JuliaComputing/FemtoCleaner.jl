@@ -22,7 +22,7 @@ function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enable
         close(listener.server)
         LibGit2.reset!(repo, LibGit2.GitHash(event.payload["after"]), LibGit2.Consts.RESET_HARD)
         if sourcerepo_installation != 0
-            auth = create_access_token(Installation(Dict(:id => sourcerepo_installation)), jwt)
+            auth = create_access_token(Installation(sourcerepo_installation), jwt)
             create_comment(Repo("Keno/FemtoCleaner.jl"), event.payload["after"], :commit; auth=auth,
                 params = Dict(
                     :body => "I have deployed this commit :shipit:."
