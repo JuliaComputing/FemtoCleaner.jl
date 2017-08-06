@@ -21,7 +21,7 @@ function maybe_autdodeploy(event, listener, enabled)
         # Shut down the server, so the new process can replace it
         close(listener)
         LibGit2.reset!(repo, event.payload["after"], Consts.RESET_HARD)
-        run(`$(Base.julia_cmd()) --history-file=no -e 'FemtoCleaner.run_server()'`)
+        run(`$(Base.julia_cmd()) --history-file=no -e 'using FemtoCleaner; FemtoCleaner.run_server()'`)
         exit()
     end
 end
