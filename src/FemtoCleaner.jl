@@ -95,10 +95,12 @@ function run_server()
     app_key = MbedTLS.PKContext()
     MbedTLS.parse_key!(app_key, haskey(ENV, "FEMTOCLEANER_PRIVKEY") ? ENV["FEMTOCLEANER_PRIVKEY"] : readstring(joinpath(dirname(@__FILE__),"..","privkey.pem")))
     app_id = parse(Int, strip(haskey(ENV, "FEMTOCLEANER_APPID") ? ENV["FEMTOCLEANER_APPID"] : readstring(joinpath(dirname(@__FILE__),"..","app_id"))))
+    secret = haskey(ENV, "FEMTOCLEANER_SECRET") ? ENV["FEMTOCLEANER_SECRET"] : nothing
+    (secret == nothing) && warn("Webhook secret not set. All events will be accepted. This is an insecure configuration!")
     jwt = GitHub.JWTAuth(app_id, app_key)
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
-    listener = GitHub.EventListener() do event
+    listener = GitHub.EventListener(secret=secret) do event
         revise()
         Base.invokelatest(event_callback, app_key, app_id, commit_sig, event)
     end
