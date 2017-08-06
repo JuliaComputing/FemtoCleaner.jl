@@ -92,7 +92,7 @@ function event_callback(app_key, app_id, commit_sig, listener, event)
         jwt = GitHub.JWTAuth(app_id, app_key)
         pr_response(event, jwt, commit_sig)
     elseif event.kind == "push"
-        return maybe_autdodeploy(event, listener, autodeployment_enabled)
+        maybe_autdodeploy(event, listener, autodeployment_enabled)
     end
     return HttpCommon.Response(200)
 end
@@ -112,6 +112,7 @@ function run_server()
         Base.invokelatest(event_callback, app_key, app_id, commit_sig, listener, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
+    wait()
 end
 
 end # module
