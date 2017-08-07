@@ -71,6 +71,11 @@ If you want to add additional interactions to the bot itself, this repository
 is the right place. If you want to contribute additional deprecation rewrites,
 please do so at https://github.com/Keno/Deprecations.jl.
 
+## Deployment of the publicly hosted copy
+
+The publicly hosted copy of FemtoCleaner is automatically deployed from the
+master branch of this repository whenever a new commit to said branch is made.
+
 ## Setting up a development copy of femtocleaner
 
 It is possible to set up a copy of femtocleaner to test changes to the codebase
