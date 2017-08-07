@@ -29,7 +29,7 @@ function clone_and_process(local_dir, repo_url)
     lrepo, changed_any
 end
 
-function apply_deprecations(repo, auth, commit_sig)
+function apply_deprecations(repo, auth, commit_sig; issue_number = 0)
     repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
     local_dir = mktempdir()
     try
@@ -37,15 +37,32 @@ function apply_deprecations(repo, auth, commit_sig)
         if changed_any
             LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
             LibGit2.push(lrepo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
-            create_pull_request(repo, auth=auth, params = Dict(
-                    :title => "Fix deprecations",
-                    :body => "I fixed a number of deprecations for you",
-                    :base => get(repo.default_branch),
-                    :head => "fbot/deps"
+        end
+        if issue_number != 0
+            if changed_any
+                create_pull_request(repo, auth=auth, params = Dict(
+                        :issue => issue_number,
+                        :base => get(repo.default_branch),
+                        :head => "fbot/deps"
+                    )
                 )
-            )
+            else
+                create_comment(repo, issue_number, :issue, params = Dict(
+                    :body => "No applicable deprecations were found in this repository."
+                ), auth=auth)
+            end
         else
-            println("Processing complete: no changes made")
+            if changed_any
+                create_pull_request(repo, auth=auth, params = Dict(
+                        :title => "Fix deprecations",
+                        :body => "I fixed a number of deprecations for you",
+                        :base => get(repo.default_branch),
+                        :head => "fbot/deps"
+                    )
+                )
+            else
+                println("Processing complete: no changes made")
+            end
         end
     finally
         rm(local_dir, force=true, recursive=true)
@@ -94,6 +111,15 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
     elseif event.kind == "push"
         jwt = GitHub.JWTAuth(app_id, app_key)
         maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, autodeployment_enabled)
+    elseif event.kind == "issues" && event.payload["action"] == "opened"
+        jwt = GitHub.JWTAuth(app_id, app_key)
+        iss = Issue(event.payload["issue"])
+        repo = Repo(event.payload["repository"])
+        installation = Installation(event.payload["installation"])
+        auth = create_access_token(installation, jwt)
+        if lowercase(get(iss.title)) == "run femtocleaner"
+            apply_deprecations(repo, auth, commit_sig; issue_number = get(iss.number))
+        end
     end
     return HttpCommon.Response(200)
 end
