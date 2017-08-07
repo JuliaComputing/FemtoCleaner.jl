@@ -72,7 +72,7 @@ include("autodeployment.jl")
 const autodeployment_enabled = haskey(ENV, "FEMTOCLEANER_AUTODEPLOY") ?
     ENV["FEMTOCLEANER_AUTODEPLOY"] == "yes" : false
 
-function event_callback(app_key, app_id, sourcerepo_installation, commit_sig, listener, event)
+function event_callback(app_name, app_key, app_id, sourcerepo_installation, commit_sig, listener, bug_repository, event)
     # On installation, process every repository we just got installed into
     if event.kind == "installation"
         jwt = GitHub.JWTAuth(app_id, app_key)
@@ -90,7 +90,7 @@ function event_callback(app_key, app_id, sourcerepo_installation, commit_sig, li
         end
     elseif event.kind == "pull_request_review"
         jwt = GitHub.JWTAuth(app_id, app_key)
-        pr_response(event, jwt, commit_sig)
+        pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     elseif event.kind == "push"
         jwt = GitHub.JWTAuth(app_id, app_key)
         maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, autodeployment_enabled)
@@ -104,6 +104,7 @@ function run_server()
     app_id = parse(Int, strip(haskey(ENV, "FEMTOCLEANER_APPID") ? ENV["FEMTOCLEANER_APPID"] : readstring(joinpath(dirname(@__FILE__),"..","app_id"))))
     secret = haskey(ENV, "FEMTOCLEANER_SECRET") ? ENV["FEMTOCLEANER_SECRET"] : nothing
     sourcerepo_installation = haskey(ENV, "FEMTOCLEANER_INSTALLATION") ? parse(Int, ENV["FEMTOCLEANER_INSTALLATION"]) : 0
+    bug_repository = haskey(ENV, "FEMTOCLEANER_BUGREPO") ? ENV["FEMTOCLEANER_BUGREPO"] : ""
     (secret == nothing) && warn("Webhook secret not set. All events will be accepted. This is an insecure configuration!")
     jwt = GitHub.JWTAuth(app_id, app_key)
     app_name = get(GitHub.app(; auth=jwt).name)
@@ -111,7 +112,7 @@ function run_server()
     local listener
     listener = GitHub.EventListener(secret=secret) do event
         revise()
-        Base.invokelatest(event_callback, app_key, app_id, sourcerepo_installation, commit_sig, listener, event)
+        Base.invokelatest(event_callback, app_name, app_key, app_id, sourcerepo_installation, commit_sig, listener, bug_repository, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
     wait()

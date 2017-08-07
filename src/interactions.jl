@@ -55,7 +55,21 @@ function align_arguments(path, line)
     end
 end
 
-function respond(repo::Repo, rev::Review, c::Comment, auth, actions)
+function file_bugreport(sender, pr, repo, bug_reports, bug_repository, repo_auth)
+    body = """
+    @$(GitHub.name(sender)) has indicated an incorrect bot action in https://github.com/$(GitHub.name(repo))/pull/$(get(pr.number))
+    The relevant snippets are shown below:
+    """
+    for c in bug_reports
+        body *= "\n```diff\n$(get(c.diff_hunk))\n```"
+    end
+    GitHub.create_issue(Repo(bug_repository); auth=repo_auth, params = Dict(
+        :body => body,
+        :title => "Incorrect bot action in $(GitHub.name(repo))"
+    ))
+end
+
+function respond(repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports)
     # Figure out what line we're at
     line = begin
         diff_hunk = get(c.diff_hunk)
@@ -82,7 +96,7 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions)
         end)
         return true
     elseif get(c.body) == "bad bot"
-        # TODO: File issue on this repository
+        push!(bug_reports, c)
         GitHub.reply_to(repo, rev, c, "I'm sorry. I'm still new at this :monkey:. I'll file an issue about this for you."; auth = auth)
         return false
     else
@@ -91,11 +105,11 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions)
     end
 end
 
-function pr_response(event, jwt, commit_sig)
+function pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     # New review on a pull request
     #   Was this pull request opened by us
     pr = PullRequest(event.payload["pull_request"])
-    get(get(pr.user).login) == "femtocleaner[bot]" || return
+    get(get(pr.user).login) == "$(app_name)[bot]" || return
     #   Was the new review for changes requested?
     r = GitHub.Review(pr, event.payload["review"])
     get(r.state) == "changes_requested" || return
@@ -107,11 +121,16 @@ function pr_response(event, jwt, commit_sig)
     cs, page_data = comments(repo, r)
     @show length(cs)
     actions = Any[]
-    results = map(c->respond(repo, r, c, auth, actions), cs)
+    bug_reports = Any[]
+    results = map(c->respond(repo, r, c, auth, actions, bug_reports), cs)
     while haskey(page_data, "next")
         cs, page_data = comments(repo, r, start_page = page_data["next"])
         isempty(cs) && return
-        append!(results, map(c->respond(repo, r, c, auth, actions), cs))
+        append!(results, map(c->respond(repo, r, c, auth, actions, bug_reports), cs))
+    end
+    if !isempty(bug_reports) && !isempty(bug_repository)
+        repo_auth = create_access_token(Installation(sourcerepo_installation), jwt)
+        file_bugreport(get(r.user), pr, repo, bug_reports, bug_repository, repo_auth)
     end
     resolutions = Any[]
     if !isempty(actions)
