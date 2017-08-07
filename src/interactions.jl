@@ -106,7 +106,8 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports
 end
 
 function pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
-    # New review on a pull request
+    # Was this a Review submission?
+    (event.payload["action"] == "submitted") || return
     #   Was this pull request opened by us
     pr = PullRequest(event.payload["pull_request"])
     get(get(pr.user).login) == "$(app_name)[bot]" || return
