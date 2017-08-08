@@ -1,5 +1,7 @@
 # FemtoCleaner
 
+<div style="text-align:center"><img src="https://avatars0.githubusercontent.com/in/4123" alt="femtocleaner"></div>
+
 FemtoCleaner cleans your julia projects by upgrading deprecated syntax, removing version compatibility workarounds and anything else that has a unique upgrade path. FemtoCleaner is designed to be as style-preserving as possible. It does not
 perform code formatting. The logic behind recognizing and rewriting deprecated constructs
 can be found in the [Deprecations.jl](https://github.com/Keno/Deprecations.jl) package,
@@ -100,3 +102,7 @@ FemtoCleaner source code before every request (simply execute `using Revise` on
 a separate line in the REPL before running FemtoCleaner). By editing the files
 on the server and using GitHub's "Redeliver" option to replay events of interest,
 a quick edit-debug cycle can be achieved.
+
+# Photo Credit
+
+<a href="http://www.freepik.com/free-photos-vectors/business">Business image created by Kjpargeter - Freepik.com</a>
