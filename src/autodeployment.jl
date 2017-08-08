@@ -21,6 +21,12 @@ function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enable
         # Shut down the server, so the new process can replace it
         close(listener.server)
         LibGit2.reset!(repo, LibGit2.GitHash(event.payload["after"]), LibGit2.Consts.RESET_HARD)
+        for (pkg, version) in JSON.parse(readstring(joinpath(dirname(@__FILE__),"..","dependencies.json")))
+            with(GitRepo, Pkg.dir(pkg)) do deprepo
+                LibGit2.fetch(deprepo)
+                LibGit2.reset!(deprepo, LibGit2.GitHash(version), LibGit2.Consts.RESET_HARD)
+            end
+        end
         if sourcerepo_installation != 0
             auth = create_access_token(Installation(sourcerepo_installation), jwt)
             create_comment(Repo("Keno/FemtoCleaner.jl"), event.payload["after"], :commit; auth=auth,
