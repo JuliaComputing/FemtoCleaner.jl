@@ -10,8 +10,25 @@ using MbedTLS
 using JSON
 using AbstractTrees: children
 
-function clone_and_process(local_dir, repo_url)
-    lrepo = LibGit2.clone(repo_url, local_dir)
+function with_cloned_repo(f, repo, auth)
+    repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
+    local_dir = mktempdir()
+    try
+        lrepo = LibGit2.clone(repo_url, local_dir)
+        f((lrepo, local_dir))
+    finally
+        rm(local_dir, force=true, recursive=true)
+    end
+end
+
+function with_pr_branch(f, repo, auth)
+    with_cloned_repo(repo, auth) do x
+        LibGit2.branch!(lrepo, "fbot/deps", track=LibGit2.Consts.REMOTE_ORIGIN)
+        f(x)
+    end
+end
+
+function process_deprecations(lrepo, local_dir)
     vers = Pkg.Reqs.parse(joinpath(local_dir, "REQUIRE"))
     deps = Deprecations.applicable_deprecations(vers)
     changed_any = false
@@ -26,46 +43,65 @@ function clone_and_process(local_dir, repo_url)
             changed_any && LibGit2.add!(lrepo, relpath(fpath, local_dir))
         end
     end
-    lrepo, changed_any
+    changed_any
 end
 
-function apply_deprecations(repo, auth, commit_sig; issue_number = 0)
-    repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
-    local_dir = mktempdir()
-    try
-        lrepo, changed_any = clone_and_process(local_dir, repo_url)
+function clone_and_process(repo_auth)
+    with_cloned_repo(x->process_deprecations(x...), repo, auth)
+end
+
+function apply_deprecations(lrepo, local_dir, commit_sig; issue_number = 0)
+    changed_any = process_deprecations(lrepo, local_dir)
+    if changed_any
+        LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
+        LibGit2.push(lrepo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
+    end
+    if issue_number != 0
         if changed_any
-            LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
-            LibGit2.push(lrepo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
-        end
-        if issue_number != 0
-            if changed_any
-                create_pull_request(repo, auth=auth, params = Dict(
-                        :issue => issue_number,
-                        :base => get(repo.default_branch),
-                        :head => "fbot/deps"
-                    )
+            create_pull_request(repo, auth=auth, params = Dict(
+                    :issue => issue_number,
+                    :base => get(repo.default_branch),
+                    :head => "fbot/deps"
                 )
-            else
-                create_comment(repo, issue_number, :issue, params = Dict(
-                    :body => "No applicable deprecations were found in this repository."
-                ), auth=auth)
-            end
+            )
         else
-            if changed_any
-                create_pull_request(repo, auth=auth, params = Dict(
-                        :title => "Fix deprecations",
-                        :body => "I fixed a number of deprecations for you",
-                        :base => get(repo.default_branch),
-                        :head => "fbot/deps"
-                    )
-                )
-            else
-                println("Processing complete: no changes made")
-            end
+            create_comment(repo, issue_number, :issue, params = Dict(
+                :body => "No applicable deprecations were found in this repository."
+            ), auth=auth)
         end
-    finally
-        rm(local_dir, force=true, recursive=true)
+    else
+        if changed_any
+            create_pull_request(repo, auth=auth, params = Dict(
+                    :title => "Fix deprecations",
+                    :body => "I fixed a number of deprecations for you",
+                    :base => get(repo.default_branch),
+                    :head => "fbot/deps"
+                )
+            )
+        else
+            println("Processing complete: no changes made")
+        end
+    end
+end
+
+function my_diff_tree(repo::LibGit2.GitRepo, oldtree::LibGit2.GitTree, newtree::LibGit2.GitTree; pathspecs::AbstractString="")
+    diff_ptr_ptr = Ref{Ptr{Void}}(C_NULL)
+    @LibGit2.check ccall((:git_diff_tree_to_tree, :libgit2), Cint,
+                  (Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{LibGit2.DiffOptionsStruct}),
+                   diff_ptr_ptr, repo.ptr, oldtree.ptr, newtree.ptr, isempty(pathspecs) ? C_NULL : pathspecs)
+    return LibGit2.GitDiff(repo, diff_ptr_ptr[])
+end
+
+function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_sig)
+    before = LibGit2.GitCommit(lrepo, before)
+    after = LibGit2.GitCommit(lrepo, after)
+    delta = my_diff_tree(lrepo, LibGit2.peel(before), LibGit2.peel(after); pathspecs="REQUIRE")[1]
+    old_blob = LibGit2.GitBlob(lrepo, delta.old_file.id)
+    new_blob = LibGit2.GitBlob(lrepo, delta.new_file.id)
+    vers_old = Pkg.Reqs.parse(IOBuffer(LibGit2.content(old_blob)))
+    vers_new = Pkg.Reqs.parse(IOBuffer(LibGit2.content(new_blob)))
+    if vers_new["julia"] != vers_old["julia"]
+        apply_deprecations(lrepo, local_dir, commit_sig)
     end
 end
 
@@ -96,20 +132,38 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         installation = Installation(event.payload["installation"])
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories"]
-            apply_deprecations(GitHub.repo(GitHub.Repo(repo)), auth, commit_sig)
+            with_cloned_repo(GitHub.repo(GitHub.Repo(repo)), auth) do x
+                apply_deprecations(x..., commit_sig)
+            end
         end
     elseif event.kind == "installation_repositories"
         jwt = GitHub.JWTAuth(app_id, app_key)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories_added"]
-            apply_deprecations(GitHub.repo(GitHub.Repo(repo)), auth, commit_sig)
+            with_cloned_repo(GitHub.repo(GitHub.Repo(repo)), auth) do x
+                apply_deprecations(x..., commit_sig)
+            end
         end
     elseif event.kind == "pull_request_review"
         jwt = GitHub.JWTAuth(app_id, app_key)
         pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     elseif event.kind == "push"
         jwt = GitHub.JWTAuth(app_id, app_key)
+        installation = Installation(event.payload["installation"])
+        auth = create_access_token(installation, jwt)
+        repo = Repo(event.payload["repository"])
+        # Check if REQUIRE was updated
+        for commit in event.payload["commits"]
+            if "REQUIRE" in commit["modified"]
+                with_cloned_repo(repo, auth) do x
+                    apply_deprecations_if_updated(x...,
+                        event.payload["before"], event.payload["after"],
+                        commit_sig)
+                end
+                break
+            end
+        end
         maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, autodeployment_enabled)
     elseif event.kind == "issues" && event.payload["action"] == "opened"
         jwt = GitHub.JWTAuth(app_id, app_key)
@@ -118,7 +172,9 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         installation = Installation(event.payload["installation"])
         auth = create_access_token(installation, jwt)
         if lowercase(get(iss.title)) == "run femtocleaner"
-            apply_deprecations(repo, auth, commit_sig; issue_number = get(iss.number))
+            with_cloned_repo(repo, auth) do x
+                apply_deprecations(x..., commit_sig; issue_number = get(iss.number))
+            end
         end
     end
     return HttpCommon.Response(200)

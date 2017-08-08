@@ -6,18 +6,6 @@ struct FileTextReplacement
 end
 FileTextReplacement(path::String, args...) = FileTextReplacement(path, TextReplacement(args...))
 
-function with_pr_branch(f, repo, auth)
-    repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
-    local_dir = mktempdir()
-    try
-        lrepo = LibGit2.clone(repo_url, local_dir)
-        LibGit2.branch!(lrepo, "fbot/deps", track=LibGit2.Consts.REMOTE_ORIGIN)
-        f((lrepo, local_dir))
-    finally
-        rm(local_dir, force=true, recursive=true)
-    end
-end
-
 function byte_range_for_line(text, line)
     lines = split(text, '\n')
     first = sum(sizeof, lines[1:line-1]) + line
