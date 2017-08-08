@@ -23,7 +23,9 @@ function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enable
         LibGit2.reset!(repo, LibGit2.GitHash(event.payload["after"]), LibGit2.Consts.RESET_HARD)
         for (pkg, version) in JSON.parse(readstring(joinpath(dirname(@__FILE__),"..","dependencies.json")))
             with(GitRepo, Pkg.dir(pkg)) do deprepo
-                LibGit2.fetch(deprepo)
+                for remote in LibGit2.remotes(deprepo)
+                    LibGit2.fetch(deprepo; remote=remote)
+                end
                 LibGit2.reset!(deprepo, LibGit2.GitHash(version), LibGit2.Consts.RESET_HARD)
             end
         end
