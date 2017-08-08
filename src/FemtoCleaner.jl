@@ -50,7 +50,7 @@ function clone_and_process(repo_auth)
     with_cloned_repo(x->process_deprecations(x...), repo, auth)
 end
 
-function apply_deprecations(lrepo, local_dir, commit_sig; issue_number = 0)
+function apply_deprecations(lrepo, local_dir, commit_sig, auth; issue_number = 0)
     changed_any = process_deprecations(lrepo, local_dir)
     if changed_any
         LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
@@ -92,7 +92,7 @@ function my_diff_tree(repo::LibGit2.GitRepo, oldtree::LibGit2.GitTree, newtree::
     return LibGit2.GitDiff(repo, diff_ptr_ptr[])
 end
 
-function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_sig)
+function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_sig, auth)
     before = LibGit2.GitCommit(lrepo, before)
     after = LibGit2.GitCommit(lrepo, after)
     delta = my_diff_tree(lrepo, LibGit2.peel(before), LibGit2.peel(after); pathspecs="REQUIRE")[1]
@@ -101,7 +101,7 @@ function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_s
     vers_old = Pkg.Reqs.parse(IOBuffer(LibGit2.content(old_blob)))
     vers_new = Pkg.Reqs.parse(IOBuffer(LibGit2.content(new_blob)))
     if vers_new["julia"] != vers_old["julia"]
-        apply_deprecations(lrepo, local_dir, commit_sig)
+        apply_deprecations(lrepo, local_dir, commit_sig, auth)
     end
 end
 
@@ -133,7 +133,7 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories"]
             with_cloned_repo(GitHub.repo(GitHub.Repo(repo)), auth) do x
-                apply_deprecations(x..., commit_sig)
+                apply_deprecations(x..., commit_sig, auth)
             end
         end
     elseif event.kind == "installation_repositories"
@@ -142,7 +142,7 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         auth = create_access_token(installation, jwt)
         for repo in event.payload["repositories_added"]
             with_cloned_repo(GitHub.repo(GitHub.Repo(repo)), auth) do x
-                apply_deprecations(x..., commit_sig)
+                apply_deprecations(x..., commit_sig, auth)
             end
         end
     elseif event.kind == "pull_request_review"
@@ -159,7 +159,7 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
                 with_cloned_repo(repo, auth) do x
                     apply_deprecations_if_updated(x...,
                         event.payload["before"], event.payload["after"],
-                        commit_sig)
+                        commit_sig, auth)
                 end
                 break
             end
@@ -173,7 +173,7 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         auth = create_access_token(installation, jwt)
         if lowercase(get(iss.title)) == "run femtocleaner"
             with_cloned_repo(repo, auth) do x
-                apply_deprecations(x..., commit_sig; issue_number = get(iss.number))
+                apply_deprecations(x..., commit_sig, auth; issue_number = get(iss.number))
             end
         end
     end
