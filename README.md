@@ -1,6 +1,6 @@
 # FemtoCleaner
 
-<div style="text-align:center"><img src="https://avatars0.githubusercontent.com/in/4123" alt="femtocleaner"></div>
+<p align="center"><img src="https://avatars0.githubusercontent.com/in/4123" alt="femtocleaner"></p>
 
 FemtoCleaner cleans your julia projects by upgrading deprecated syntax, removing version compatibility workarounds and anything else that has a unique upgrade path. FemtoCleaner is designed to be as style-preserving as possible. It does not
 perform code formatting. The logic behind recognizing and rewriting deprecated constructs
