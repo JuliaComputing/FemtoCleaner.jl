@@ -3,7 +3,7 @@ using Base: LibGit2
 function has_open_femtocleaner_pr(api, repo, auth)
     prs, page_data = pull_requests(api, repo; params = Dict(
         :state => "open",
-        :head => "fbot/deps"
+        :head => "$(GitHub.name(get(repo.owner))):fbot/deps"
     ), auth=auth)
     !isempty(prs)
 end
