@@ -68,6 +68,13 @@ end
 function GitHub.create_pull_request(api::FemtoCleanerTestAPI, args...; kwargs...)
     push!(actions, :pr)
 end
+function GitHub.reply_to(api::FemtoCleanerTestAPI, repo, r::GitHub.Review, c::GitHub.Comment, body; kwargs...)
+    push!(actions, :reply)
+end
+function GitHub.create_issue(api::FemtoCleanerTestAPI, repo::GitHub.Repo; kwargs...)
+    push!(actions, :issue)
+end
+
 
 fake_app_key = MbedTLS.PKContext()
 MbedTLS.parse_key!(fake_app_key, readstring(
@@ -118,6 +125,50 @@ test_event(WebhookEvent(
     """), Repo(""), Owner("")
 ))
 @test actions == [:push, :pr]
+
+# Some test for the `bad bot` interaction
+function GitHub.comments(api::FemtoCleanerTestAPI, repo::GitHub.Repo, review::GitHub.Review)
+    [Comment(JSON.parse("""
+    {
+        "id": 1,
+        "body": "bad bot",
+        "diff_hunk": "@@ -16,33 +16,40 @@ public class Connection : IConnection..."
+    }
+    """))], Dict()
+end
+empty!(actions)
+test_event(WebhookEvent(
+    "pull_request_review",
+    JSON.parse("""
+        {
+            "action": "submitted",
+            "installation": {
+                "id": 1
+            },
+            "review": {
+                "id": 1,
+                "user": {
+                    "login": "Keno",
+                    "id": 1
+                },
+                "state": "changes_requested"
+            },
+            "pull_request": {
+                "id": 1,
+                "number": 1,
+                "user": {
+                    "login": "$app_name[bot]",
+                    "id": 2
+                }
+            },
+            "repository": {
+                "id": 1,
+                "full_name": "Keno/TestRepo"
+            }
+        }
+    """), Repo(""), Owner("")
+))
+@show actions == [:reply, :issue]
 
 # Smoke test for the startup upgrade
 GitHub.installations(api::FemtoCleanerTestAPI, jwt::GitHub.JWTAuth) = map(Installation, [1, 2])

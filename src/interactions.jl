@@ -43,7 +43,7 @@ function align_arguments(path, line)
     end
 end
 
-function file_bugreport(sender, pr, repo, bug_reports, bug_repository, repo_auth)
+function file_bugreport(api::GitHubAPI, sender, pr, repo, bug_reports, bug_repository, repo_auth)
     body = """
     @$(GitHub.name(sender)) has indicated an incorrect bot action in https://github.com/$(GitHub.name(repo))/pull/$(get(pr.number))
     The relevant snippets are shown below:
@@ -51,13 +51,13 @@ function file_bugreport(sender, pr, repo, bug_reports, bug_repository, repo_auth
     for c in bug_reports
         body *= "\n```diff\n$(get(c.diff_hunk))\n```"
     end
-    GitHub.create_issue(Repo(bug_repository); auth=repo_auth, params = Dict(
+    GitHub.create_issue(api, Repo(bug_repository); auth=repo_auth, params = Dict(
         :body => body,
         :title => "Incorrect bot action in $(GitHub.name(repo))"
     ))
 end
 
-function respond(repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports)
+function respond(api, repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports)
     # Figure out what line we're at
     line = begin
         diff_hunk = get(c.diff_hunk)
@@ -85,10 +85,10 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports
         return true
     elseif get(c.body) == "bad bot"
         push!(bug_reports, c)
-        GitHub.reply_to(repo, rev, c, "I'm sorry. I'm still new at this :monkey:. I'll file an issue about this for you."; auth = auth)
+        GitHub.reply_to(api, repo, rev, c, "I'm sorry. I'm still new at this :monkey:. I'll file an issue about this for you."; auth = auth)
         return false
     else
-        GitHub.reply_to(repo, rev, c, "I'm sorry, I don't know how to do that :anguished:."; auth = auth)
+        GitHub.reply_to(api, repo, rev, c, "I'm sorry, I don't know how to do that :anguished:."; auth = auth)
         return false
     end
 end
