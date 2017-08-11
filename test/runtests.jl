@@ -123,19 +123,23 @@ test_event(WebhookEvent(
 GitHub.installations(api::FemtoCleanerTestAPI, jwt::GitHub.JWTAuth) = map(Installation, [1, 2])
 function GitHub.repos(api::FemtoCleanerTestAPI, i::GitHub.Installation; kwargs...)
     if get(i.id) == 1
-        return map(Repo, ["Keno/A", "Keno/B"]), Dict()
+        repos = map(Repo, ["Keno/A", "Keno/B"])
     elseif get(i.id) == 2
-        return map(Repo, ["Keno/C"]), Dict()
+        repos = map(Repo, ["Keno/C"])
     else
         error()
     end
+    foreach(repos) do repo
+        repo.owner = Owner("Keno")
+    end
+    repos, Dict()
 end
 function GitHub.pull_requests(api::FemtoCleanerTestAPI, r::GitHub.Repo; kwargs...)
     if GitHub.name(r) == "Keno/A"
-        map(PullRequest, [1]), Dict()
+        [map(PullRequest, [1])], Dict()
     else
         PullRequest[], Dict()
     end
 end
 
-FemtoCleaner.update_existing_repos(FemtoCleanerTestAPI(), test_commit_sig, GitHub.JWTAuth(1, fake_app_key))
+FemtoCleaner.update_existing_repos(FemtoCleanerTestAPI(), test_commit_sig, 1, fake_app_key)

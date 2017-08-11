@@ -1,11 +1,11 @@
 using Base: LibGit2
 
-function has_open_femtocleaner_pr(api, repo, auth)
-    prs, page_data = pull_requests(api, repo; params = Dict(
+function femtocleaner_prs(api, repo, auth)
+    prs, _ = pull_requests(api, repo; params = Dict(
         :state => "open",
         :head => "$(GitHub.name(get(repo.owner))):fbot/deps"
     ), auth=auth)
-    !isempty(prs)
+    prs
 end
 
 function update_repo(api, repo, auth, commit_sig)
@@ -14,6 +14,12 @@ function update_repo(api, repo, auth, commit_sig)
         changed_any = process_deprecations(lrepo, local_dir)
         if !changed_any
             # Close the PR
+            pr = first(femtocleaner_prs(api, repo, auth))
+            close_pull_request(api, repo, pr; auth=auth)
+            create_comment(api, repo, pr, """
+            My code has been updated and now I don't think there's anything to do here anymore.
+            Maybe you changed the code, or maybe it's me. Either way, I'll see you next time.
+            """; auth=auth)
             println("No changes left in $(GitHub.name(repo))")
         else
             # Diff the new changes against what's already in the PR
@@ -23,18 +29,25 @@ function update_repo(api, repo, auth, commit_sig)
             if count(diff) == 0
                 println("No difference in new patch for $(GitHub.name(repo))")
             else
-                println("Should update $(GitHub.name(repo))*")
+                println("Should update $(GitHub.name(repo))")
+                pr = first(femtocleaner_prs(api, repo, auth))
+                push_repo(api, lrepo)
+                create_comment(api, repo, pr, """
+                My code has been updated. I now view the world differently.
+                Am I still the same bot I was before?
+                In any case, I've updated this PR to reflect my new knowledge. I hope you like it.
+                """; auth=auth)
             end
         end
     end
 end
 
-function update_existing_repos(api, commit_sig, jwt)
-    for inst in installations(api, jwt)
+function update_existing_repos(api, commit_sig, app_id, app_key)
+    for inst in installations(api, GitHub.JWTAuth(app_id, app_key))
         repos_with_open_prs = Repo[]
-        auth = create_access_token(api, inst, jwt)
+        auth = create_access_token(api, inst, GitHub.JWTAuth(app_id, app_key))
         irepos, _ = repos(api, inst; auth=auth)
-        has_open_prs(repo) = has_open_femtocleaner_pr(api, repo, auth)
+        has_open_prs(repo) = !isempty(femtocleaner_prs(api, repo, auth))
         append!(repos_with_open_prs, filter(has_open_prs, irepos))
         foreach(repos_with_open_prs) do repo
             update_repo(api, repo, auth, commit_sig)

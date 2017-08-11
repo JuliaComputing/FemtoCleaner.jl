@@ -200,7 +200,7 @@ function run_server()
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
     api = GitHub.DEFAULT_API
-    @async update_existing_repos(api, commit_sig, jwt)
+    @async update_existing_repos(api, commit_sig, app_id, app_key)
     local listener
     listener = GitHub.EventListener(secret=secret) do event
         revise()
