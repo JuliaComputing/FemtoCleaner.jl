@@ -199,10 +199,12 @@ function run_server()
     jwt = GitHub.JWTAuth(app_id, app_key)
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
+    api = GitHub.DEFAULT_API
+    @async update_existing_repos(api, commit_sig, jwt)
     local listener
     listener = GitHub.EventListener(secret=secret) do event
         revise()
-        Base.invokelatest(event_callback, GitHub.DEFAULT_API, app_name, app_key, app_id,
+        Base.invokelatest(event_callback, api, app_name, app_key, app_id,
                           sourcerepo_installation, commit_sig, listener, bug_repository, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
