@@ -44,13 +44,18 @@ end
 
 function update_existing_repos(api, commit_sig, app_id, app_key)
     for inst in installations(api, GitHub.JWTAuth(app_id, app_key))
-        repos_with_open_prs = Repo[]
-        auth = create_access_token(api, inst, GitHub.JWTAuth(app_id, app_key))
-        irepos, _ = repos(api, inst; auth=auth)
-        has_open_prs(repo) = !isempty(femtocleaner_prs(api, repo, auth))
-        append!(repos_with_open_prs, filter(has_open_prs, irepos))
-        foreach(repos_with_open_prs) do repo
-            update_repo(api, repo, auth, commit_sig)
+        try
+            repos_with_open_prs = Repo[]
+            auth = create_access_token(api, inst, GitHub.JWTAuth(app_id, app_key))
+            irepos, _ = repos(api, inst; auth=auth)
+            has_open_prs(repo) = !isempty(femtocleaner_prs(api, repo, auth))
+            append!(repos_with_open_prs, filter(has_open_prs, irepos))
+            foreach(repos_with_open_prs) do repo
+                update_repo(api, repo, auth, commit_sig)
+            end
+        catch e
+            bt = catch_backtrace()
+            Base.display_error(STDERR, e, bt)
         end
     end
 end
