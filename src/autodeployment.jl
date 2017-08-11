@@ -33,13 +33,9 @@ function update_existing_repos(api, commit_sig, jwt)
     for inst in installations(api, jwt)
         repos_with_open_prs = Repo[]
         auth = create_access_token(api, inst, jwt)
-        irepos, page_data = repos(api, inst; auth=auth)
+        irepos, _ = repos(api, inst; auth=auth)
         has_open_prs(repo) = has_open_femtocleaner_pr(api, repo, auth)
         append!(repos_with_open_prs, filter(has_open_prs, irepos))
-        while haskey(page_data, "next")
-            irepos, page_data = repos(api, inst; auth=auth, start_page = page_data["next"])
-            append!(repos_with_open_prs, filter(has_open_prs, irepos))
-        end
         foreach(repos_with_open_prs) do repo
             update_repo(api, repo, auth, commit_sig)
         end
