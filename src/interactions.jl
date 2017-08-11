@@ -93,7 +93,7 @@ function respond(repo::Repo, rev::Review, c::Comment, auth, actions, bug_reports
     end
 end
 
-function pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
+function pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     # Was this a Review submission?
     (event.payload["action"] == "submitted") || return
     #   Was this pull request opened by us
@@ -104,26 +104,26 @@ function pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, 
     get(r.state) == "changes_requested" || return
     # Authenticate
     installation = Installation(event.payload["installation"])
-    auth = create_access_token(installation, jwt)
+    auth = create_access_token(api, installation, jwt)
     # Look through the comments for this review
     repo = Repo(event.payload["repository"])
-    cs, page_data = comments(repo, r)
+    cs, page_data = comments(api, repo, r)
     @show length(cs)
     actions = Any[]
     bug_reports = Any[]
-    results = map(c->respond(repo, r, c, auth, actions, bug_reports), cs)
+    results = map(c->respond(api, repo, r, c, auth, actions, bug_reports), cs)
     while haskey(page_data, "next")
-        cs, page_data = comments(repo, r, start_page = page_data["next"])
+        cs, page_data = comments(api, repo, r, start_page = page_data["next"])
         isempty(cs) && return
-        append!(results, map(c->respond(repo, r, c, auth, actions, bug_reports), cs))
+        append!(results, map(c->respond(api, repo, r, c, auth, actions, bug_reports), cs))
     end
     if !isempty(bug_reports) && !isempty(bug_repository)
-        repo_auth = create_access_token(Installation(sourcerepo_installation), jwt)
-        file_bugreport(get(r.user), pr, repo, bug_reports, bug_repository, repo_auth)
+        repo_auth = create_access_token(api, Installation(sourcerepo_installation), jwt)
+        file_bugreport(api, get(r.user), pr, repo, bug_reports, bug_repository, repo_auth)
     end
     resolutions = Any[]
     if !isempty(actions)
-        with_pr_branch(repo, auth) do x
+        with_pr_branch(api, repo, auth) do x
             lrepo, local_dir = x
             for a in actions
                 a(local_dir, resolutions)
@@ -144,8 +144,8 @@ function pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, 
         end
     end
     if all(results)
-        create_comment(repo, pr, "I have addressed the review comments."; auth=auth)
+        create_comment(api, repo, pr, "I have addressed the review comments."; auth=auth)
     elseif any(results)
-        create_comment(repo, pr, "I have addressed all the review comments I know how to."; auth=auth)
+        create_comment(api, repo, pr, "I have addressed all the review comments I know how to."; auth=auth)
     end
 end

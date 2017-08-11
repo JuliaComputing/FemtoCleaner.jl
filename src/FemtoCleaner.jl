@@ -1,6 +1,7 @@
 module FemtoCleaner
 
 using GitHub
+using GitHub: GitHubAPI, GitHubWebAPI
 using HttpCommon
 using Deprecations
 using CSTParser
@@ -10,7 +11,7 @@ using MbedTLS
 using JSON
 using AbstractTrees: children
 
-function with_cloned_repo(f, repo, auth)
+function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
     local_dir = mktempdir()
     try
@@ -46,32 +47,36 @@ function process_deprecations(lrepo, local_dir)
     changed_any
 end
 
-function clone_and_process(repo_auth)
-    with_cloned_repo(x->process_deprecations(x...), repo, auth)
+function clone_and_process(api, repo, auth)
+    with_cloned_repo(x->process_deprecations(x...), api, repo, auth)
 end
 
-function apply_deprecations(lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
+function push_repo(api::GitHubWebAPI, repo)
+    LibGit2.push(repo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
+end
+
+function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
     changed_any = process_deprecations(lrepo, local_dir)
     if changed_any
         LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
-        LibGit2.push(lrepo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
+        push_repo(api, lrepo)
     end
     if issue_number != 0
         if changed_any
-            create_pull_request(repo, auth=auth, params = Dict(
+            create_pull_request(api, repo, auth=auth, params = Dict(
                     :issue => issue_number,
                     :base => get(repo.default_branch),
                     :head => "fbot/deps"
                 )
             )
         else
-            create_comment(repo, issue_number, :issue, params = Dict(
+            create_comment(api, repo, issue_number, :issue, params = Dict(
                 :body => "No applicable deprecations were found in this repository."
             ), auth=auth)
         end
     else
         if changed_any
-            create_pull_request(repo, auth=auth, params = Dict(
+            create_pull_request(api, repo, auth=auth, params = Dict(
                     :title => "Fix deprecations",
                     :body => "I fixed a number of deprecations for you",
                     :base => get(repo.default_branch),
@@ -92,7 +97,7 @@ function my_diff_tree(repo::LibGit2.GitRepo, oldtree::LibGit2.GitTree, newtree::
     return LibGit2.GitDiff(repo, diff_ptr_ptr[])
 end
 
-function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_sig, repo, auth)
+function apply_deprecations_if_updated(api::GitHubAPI, lrepo, local_dir, before, after, commit_sig, repo, auth)
     before = LibGit2.GitCommit(lrepo, before)
     after = LibGit2.GitCommit(lrepo, after)
     delta = my_diff_tree(lrepo, LibGit2.peel(before), LibGit2.peel(after); pathspecs="REQUIRE")[1]
@@ -101,7 +106,7 @@ function apply_deprecations_if_updated(lrepo, local_dir, before, after, commit_s
     vers_old = Pkg.Reqs.parse(IOBuffer(LibGit2.content(old_blob)))
     vers_new = Pkg.Reqs.parse(IOBuffer(LibGit2.content(new_blob)))
     if vers_new["julia"] != vers_old["julia"]
-        apply_deprecations(lrepo, local_dir, commit_sig, repo, auth)
+        apply_deprecations(api, lrepo, local_dir, commit_sig, repo, auth)
     end
 end
 
@@ -125,41 +130,42 @@ include("autodeployment.jl")
 const autodeployment_enabled = haskey(ENV, "FEMTOCLEANER_AUTODEPLOY") ?
     ENV["FEMTOCLEANER_AUTODEPLOY"] == "yes" : false
 
-function event_callback(app_name, app_key, app_id, sourcerepo_installation, commit_sig, listener, bug_repository, event)
+function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_installation,
+                        commit_sig, listener, bug_repository, event)
     # On installation, process every repository we just got installed into
     if event.kind == "installation"
         jwt = GitHub.JWTAuth(app_id, app_key)
         installation = Installation(event.payload["installation"])
-        auth = create_access_token(installation, jwt)
+        auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories"]
-            repo = GitHub.repo(GitHub.Repo(repo))
-            with_cloned_repo(repo, auth) do x
-                apply_deprecations(x..., commit_sig, repo, auth)
+            repo = GitHub.repo(api, GitHub.Repo(repo))
+            with_cloned_repo(api, repo, auth) do x
+                apply_deprecations(api, x..., commit_sig, repo, auth)
             end
         end
     elseif event.kind == "installation_repositories"
         jwt = GitHub.JWTAuth(app_id, app_key)
         installation = Installation(event.payload["installation"])
-        auth = create_access_token(installation, jwt)
+        auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories_added"]
-            repo = GitHub.repo(GitHub.Repo(repo))
-            with_cloned_repo(repo, auth) do x
-                apply_deprecations(x..., commit_sig, repo, auth)
+            repo = GitHub.repo(api, GitHub.Repo(repo))
+            with_cloned_repo(api, repo, auth) do x
+                apply_deprecations(api, x..., commit_sig, repo, auth)
             end
         end
     elseif event.kind == "pull_request_review"
         jwt = GitHub.JWTAuth(app_id, app_key)
-        pr_response(event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
+        pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     elseif event.kind == "push"
         jwt = GitHub.JWTAuth(app_id, app_key)
         installation = Installation(event.payload["installation"])
-        auth = create_access_token(installation, jwt)
+        auth = create_access_token(api, installation, jwt)
         repo = Repo(event.payload["repository"])
         # Check if REQUIRE was updated
         for commit in event.payload["commits"]
             if "REQUIRE" in commit["modified"]
-                with_cloned_repo(repo, auth) do x
-                    apply_deprecations_if_updated(x...,
+                with_cloned_repo(api, repo, auth) do x
+                    apply_deprecations_if_updated(api, x...,
                         event.payload["before"], event.payload["after"],
                         commit_sig, repo, auth)
                 end
@@ -172,10 +178,10 @@ function event_callback(app_name, app_key, app_id, sourcerepo_installation, comm
         iss = Issue(event.payload["issue"])
         repo = Repo(event.payload["repository"])
         installation = Installation(event.payload["installation"])
-        auth = create_access_token(installation, jwt)
+        auth = create_access_token(api, installation, jwt)
         if lowercase(get(iss.title)) == "run femtocleaner"
-            with_cloned_repo(repo, auth) do x
-                apply_deprecations(x..., commit_sig, repo, auth; issue_number = get(iss.number))
+            with_cloned_repo(api, repo, auth) do x
+                apply_deprecations(api, x..., commit_sig, repo, auth; issue_number = get(iss.number))
             end
         end
     end
@@ -196,7 +202,8 @@ function run_server()
     local listener
     listener = GitHub.EventListener(secret=secret) do event
         revise()
-        Base.invokelatest(event_callback, app_name, app_key, app_id, sourcerepo_installation, commit_sig, listener, bug_repository, event)
+        Base.invokelatest(event_callback, GitHub.DEFAULT_API, app_name, app_key, app_id,
+                          sourcerepo_installation, commit_sig, listener, bug_repository, event)
     end
     GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
     wait()
