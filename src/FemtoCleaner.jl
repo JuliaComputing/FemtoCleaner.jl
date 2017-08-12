@@ -12,10 +12,11 @@ using JSON
 using AbstractTrees: children
 
 function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
-    repo_url = "https://x-access-token:$(auth.token)@github.com/$(get(repo.full_name))"
+    creds = LibGit2.UserPasswordCredentials("x-access-token", auth.token)
+    repo_url = "https://@github.com/$(get(repo.full_name))"
     local_dir = mktempdir()
     try
-        lrepo = LibGit2.clone(repo_url, local_dir)
+        lrepo = LibGit2.clone(repo_url, local_dir; payload=creds)
         f((lrepo, local_dir))
     finally
         rm(local_dir, force=true, recursive=true)
