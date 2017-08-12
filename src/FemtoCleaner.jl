@@ -16,7 +16,7 @@ function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     repo_url = "https://@github.com/$(get(repo.full_name))"
     local_dir = mktempdir()
     try
-        lrepo = LibGit2.clone(repo_url, local_dir; payload=creds)
+        lrepo = LibGit2.clone(repo_url, local_dir; payload=Nullable(creds))
         f((lrepo, local_dir))
     finally
         rm(local_dir, force=true, recursive=true)
@@ -139,7 +139,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories"]
-            repo = GitHub.repo(api, GitHub.Repo(repo))
+            repo = GitHub.repo(api, GitHub.Repo(repo); auth=auth)
             with_cloned_repo(api, repo, auth) do x
                 apply_deprecations(api, x..., commit_sig, repo, auth)
             end
@@ -149,7 +149,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories_added"]
-            repo = GitHub.repo(api, GitHub.Repo(repo))
+            repo = GitHub.repo(api, GitHub.Repo(repo); auth=auth)
             with_cloned_repo(api, repo, auth) do x
                 apply_deprecations(api, x..., commit_sig, repo, auth)
             end
