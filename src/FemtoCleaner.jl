@@ -12,11 +12,13 @@ using JSON
 using AbstractTrees: children
 
 function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
-    creds = LibGit2.UserPasswordCredentials("x-access-token", auth.token)
-    repo_url = "https://@github.com/$(get(repo.full_name))"
+    creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
+    repo_url = "https://github.com/$(get(repo.full_name))"
     local_dir = mktempdir()
     try
+        enabled = gc_enable(false)
         lrepo = LibGit2.clone(repo_url, local_dir; payload=Nullable(creds))
+        gc_enable(enabled)
         f((lrepo, local_dir))
     finally
         rm(local_dir, force=true, recursive=true)
@@ -53,9 +55,11 @@ function clone_and_process(api, repo, auth)
 end
 
 function push_repo(api::GitHubWebAPI, repo, auth; force=true)
-    creds = LibGit2.UserPasswordCredentials("x-access-token", auth.token)
+    creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
+    enabled = gc_enable(false)
     LibGit2.push(repo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=force,
         payload=Nullable(creds))
+    gc_enable(enabled)
 end
 
 function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
