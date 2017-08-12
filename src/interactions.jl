@@ -140,7 +140,7 @@ function pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installat
                 LibGit2.add!(lrepo, relpath(path, local_dir))
             end
             LibGit2.commit(lrepo, "Address review comments"; author=commit_sig, committer=commit_sig)
-            LibGit2.push(lrepo, refspecs = ["HEAD:refs/heads/fbot/deps"])
+            push_repo(api, lrepo, auth; force = false)
         end
     end
     if all(results)

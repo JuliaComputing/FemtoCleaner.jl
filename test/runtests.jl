@@ -5,7 +5,7 @@ using GitHub: WebhookEvent, GitHubAPI
 
 struct FemtoCleanerTestAPI <: GitHubAPI; end
 GitHub.create_access_token(api::FemtoCleanerTestAPI, installation::Installation, jwt::GitHub.JWTAuth) = GitHub.OAuth2("BadData")
-GitHub.repo(api::FemtoCleanerTestAPI, r) = r
+GitHub.repo(api::FemtoCleanerTestAPI, r; kwargs...) = r
 
 function setup_local_dir(repo, local_dir)
     mkdir(joinpath(local_dir, "src"))
@@ -62,7 +62,7 @@ end
 
 # Actions
 actions = Any[]
-function FemtoCleaner.push_repo(api::FemtoCleanerTestAPI, repo)
+function FemtoCleaner.push_repo(api::FemtoCleanerTestAPI, repo, auth; kwargs...)
     push!(actions, :push)
 end
 function GitHub.create_pull_request(api::FemtoCleanerTestAPI, args...; kwargs...)

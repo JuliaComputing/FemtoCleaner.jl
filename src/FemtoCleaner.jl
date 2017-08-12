@@ -52,15 +52,17 @@ function clone_and_process(api, repo, auth)
     with_cloned_repo(x->process_deprecations(x...), api, repo, auth)
 end
 
-function push_repo(api::GitHubWebAPI, repo)
-    LibGit2.push(repo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=true)
+function push_repo(api::GitHubWebAPI, repo, auth; force=true)
+    creds = LibGit2.UserPasswordCredentials("x-access-token", auth.token)
+    LibGit2.push(repo, refspecs = ["+HEAD:refs/heads/fbot/deps"], force=force,
+        payload=Nullable(creds))
 end
 
 function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
     changed_any = process_deprecations(lrepo, local_dir)
     if changed_any
         LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
-        push_repo(api, lrepo)
+        push_repo(api, lrepo, auth)
     end
     if issue_number != 0
         if changed_any
@@ -70,10 +72,12 @@ function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, 
                     :head => "fbot/deps"
                 )
             )
+            println("Created pull request for $(GitHub.name(repo))")
         else
             create_comment(api, repo, issue_number, :issue, params = Dict(
                 :body => "No applicable deprecations were found in this repository."
             ), auth=auth)
+            println("Processing complete for $(GitHub.name(repo)): no changes made")
         end
     else
         if changed_any
@@ -84,8 +88,9 @@ function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, 
                     :head => "fbot/deps"
                 )
             )
+            println("Created pull request for $(GitHub.name(repo))")
         else
-            println("Processing complete: no changes made")
+            println("Processing complete for $(GitHub.name(repo)): no changes made")
         end
     end
 end
