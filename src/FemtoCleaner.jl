@@ -123,14 +123,19 @@ end
 function dry_run(repo_url)
     local_dir = mktempdir()
     try
-        lrepo, changed_any = clone_and_process(local_dir, repo_url)
+        enabled = gc_enable(false)
+        lrepo = LibGit2.clone(repo_url, local_dir)
+        gc_enable(enabled)
+        process_deprecations(lrepo, local_dir)
+    catch e
+        bt = catch_backtrace()
+        Base.display_error(STDERR, e, bt)
+    finally
         cd(local_dir) do
             run(`git status`)
             run(`git diff --cached`)
         end
-    finally
-        println(local_dir)
-        #rm(local_dir, force=true, recursive=true)
+        rm(local_dir, force=true, recursive=true)
     end
 end
 
