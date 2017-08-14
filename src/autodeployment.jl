@@ -63,7 +63,7 @@ end
 function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enabled)
     @assert event.kind == "push"
     repo = Repo(event.payload["repository"])
-    (GitHub.name(repo) == "Keno/FemtoCleaner.jl") || return
+    (GitHub.name(repo) == "JuliaComputing/FemtoCleaner.jl") || return
     (event.payload["ref"] == "refs/heads/master") || return
     if !enabled
         warn("Push event received, but auto deployment is disabled")
@@ -91,7 +91,7 @@ function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enable
         end
         if sourcerepo_installation != 0
             auth = create_access_token(Installation(sourcerepo_installation), jwt)
-            create_comment(Repo("Keno/FemtoCleaner.jl"), event.payload["after"], :commit; auth=auth,
+            create_comment(Repo("JuliaComputing/FemtoCleaner.jl"), event.payload["after"], :commit; auth=auth,
                 params = Dict(
                     :body => "I have deployed this commit :shipit:."
                 )

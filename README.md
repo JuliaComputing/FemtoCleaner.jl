@@ -4,7 +4,7 @@
 
 FemtoCleaner cleans your julia projects by upgrading deprecated syntax, removing version compatibility workarounds and anything else that has a unique upgrade path. FemtoCleaner is designed to be as style-preserving as possible. It does not
 perform code formatting. The logic behind recognizing and rewriting deprecated constructs
-can be found in the [Deprecations.jl](https://github.com/Keno/Deprecations.jl) package,
+can be found in the [Deprecations.jl](https://github.com/JuliaComuting/Deprecations.jl) package,
 which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under the hood.
 
 # User Manual
@@ -40,7 +40,7 @@ supported.
   opening parenthesis.
 - `bad bot` - To be used when you deem the action taken by the bot to be incorrect.
   At present this will automatically open an issue on this repository.
-  
+
 If there are other such actions you would find useful, feel free to file an
 issue or (even better) submit a PR.
 
@@ -71,7 +71,7 @@ You are encouraged to contribute changes to this repository. This software is
 used by many people. Even minor changes in usability can make a big difference.
 If you want to add additional interactions to the bot itself, this repository
 is the right place. If you want to contribute additional deprecation rewrites,
-please do so at https://github.com/Keno/Deprecations.jl.
+please do so at https://github.com/JuliaComputing/Deprecations.jl.
 
 ## Deployment of the publicly hosted copy
 
@@ -90,13 +90,13 @@ https://github.com/settings/apps/new. Make sure to enter your server in the
 of the registration process. Once you have set up your GitHub app, you will
 need to download the private key and save it as `privkey.pem` in
 `Pkg.dir("FemtoCleaner")`. Additionally, you should create a file named `app_id`,
-containing the ID assigned to your app by GitHub (it will be visible on the 
+containing the ID assigned to your app by GitHub (it will be visible on the
 confirmation page once you have set up your app with GitHub). Then, you may
 launch FemtoCleaner by running `julia -e 'using FemtoCleaner; FemtoCleaner.run_server()'`.
 It is recommended that you set up a separate repository for testing your staging
 copy that is not covered by the publicly hosted version, to avoid conflicting
 updates. GitHub provides a powerful interface to see the messages delivered to
-your app in the "Advanced" tab of your app's settings. In particular, 
+your app in the "Advanced" tab of your app's settings. In particular,
 for interactive development, you may use the `Revise` package to reload
 FemtoCleaner source code before every request (simply execute `using Revise` on
 a separate line in the REPL before running FemtoCleaner). By editing the files
