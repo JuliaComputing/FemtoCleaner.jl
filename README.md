@@ -4,7 +4,7 @@
 
 FemtoCleaner cleans your julia projects by upgrading deprecated syntax, removing version compatibility workarounds and anything else that has a unique upgrade path. FemtoCleaner is designed to be as style-preserving as possible. It does not
 perform code formatting. The logic behind recognizing and rewriting deprecated constructs
-can be found in the [Deprecations.jl](https://github.com/JuliaComuting/Deprecations.jl) package,
+can be found in the [Deprecations.jl](https://github.com/JuliaComputing/Deprecations.jl) package,
 which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under the hood.
 
 # User Manual
