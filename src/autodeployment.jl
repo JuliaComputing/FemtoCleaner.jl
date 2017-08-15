@@ -43,7 +43,7 @@ function update_repo(api, repo, auth, commit_sig)
 end
 
 function update_existing_repos(api, commit_sig, app_id, app_key)
-    for inst in installations(api, GitHub.JWTAuth(app_id, app_key))
+    for inst in installations(api, GitHub.JWTAuth(app_id, app_key))[1]
         try
             repos_with_open_prs = Repo[]
             auth = create_access_token(api, inst, GitHub.JWTAuth(app_id, app_key))

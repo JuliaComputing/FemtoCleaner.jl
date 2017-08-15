@@ -171,7 +171,7 @@ test_event(WebhookEvent(
 @show actions == [:reply, :issue]
 
 # Smoke test for the startup upgrade
-GitHub.installations(api::FemtoCleanerTestAPI, jwt::GitHub.JWTAuth) = map(Installation, [1, 2])
+GitHub.installations(api::FemtoCleanerTestAPI, jwt::GitHub.JWTAuth) = map(Installation, [1, 2]), Dict()
 function GitHub.repos(api::FemtoCleanerTestAPI, i::GitHub.Installation; kwargs...)
     if get(i.id) == 1
         repos = map(Repo, ["Keno/A", "Keno/B"])
