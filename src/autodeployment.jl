@@ -32,11 +32,18 @@ function update_repo(api, repo, auth, commit_sig)
                 println("Should update $(GitHub.name(repo))")
                 pr = first(femtocleaner_prs(api, repo, auth))
                 push_repo(api, lrepo, auth)
-                create_comment(api, repo, pr, """
+                comments = ["""
                 My code has been updated. I now view the world differently.
                 Am I still the same bot I was before?
                 In any case, I've updated this PR to reflect my new knowledge. I hope you like it.
-                """; auth=auth)
+                """, """
+                I’ve seen things you people wouldn’t believe.
+                Attack ships on fire off the shoulder of Orion.
+                I watched C-beams glitter in the dark near the Tannhäuser Gate.
+                All those moments will be lost, in time, like tears in rain.
+                Time to die.
+                """]
+                create_comment(api, repo, pr, rand(comments); auth=auth)
             end
         end
     end
