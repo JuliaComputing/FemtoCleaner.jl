@@ -64,11 +64,6 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
     changed_any
 end
 
-function clone_and_process(api, repo, auth)
-    is_julia_itself = GitHub.name(repo) == "JuliaLang/julia"
-    with_cloned_repo(x->process_deprecations(x...; is_julia_itself=is_julia_itself), api, repo, auth)
-end
-
 function push_repo(api::GitHubWebAPI, repo, auth; force=true)
     creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
     enabled = gc_enable(false)
@@ -78,7 +73,8 @@ function push_repo(api::GitHubWebAPI, repo, auth; force=true)
 end
 
 function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
-    changed_any = process_deprecations(lrepo, local_dir)
+    is_julia_itself = GitHub.name(repo) == "JuliaLang/julia"
+    changed_any = process_deprecations(lrepo, local_dir; is_julia_itself=is_julia_itself)
     if changed_any
         LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig, parent_ids=[LibGit2.GitHash(lrepo, "HEAD")])
         push_repo(api, lrepo, auth)
