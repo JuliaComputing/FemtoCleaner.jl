@@ -10,6 +10,7 @@ using Revise
 using MbedTLS
 using JSON
 using AbstractTrees: children
+using Base: LibGit2
 
 function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
@@ -32,8 +33,21 @@ function with_pr_branch(f, repo, auth)
     end
 end
 
-function process_deprecations(lrepo, local_dir)
-    vers = Pkg.Reqs.parse(joinpath(local_dir, "REQUIRE"))
+if VERSION < v"0.7.0-DEV.695"
+    include("blame.jl")
+else
+    using LibGit2: GitBlame
+end
+
+function process_deprecations(lrepo, local_dir; is_julia_itself=false)
+    if is_julia_itself
+        ver = readstring(joinpath(local_dir, "VERSION"))
+        hunk = GitBlame(lrepo, "VERSION")[1]
+        l, r = LibGit2.revcount(lrepo, string(hunk.orig_commit_id), "HEAD")
+        vers = Pkg.Reqs.parse(IOBuffer("julia $ver+$(l+r)"))
+    else
+        vers = Pkg.Reqs.parse(joinpath(local_dir, "REQUIRE"))
+    end
     deps = Deprecations.applicable_deprecations(vers)
     changed_any = false
     for (root, dirs, files) in walkdir(local_dir)
@@ -51,7 +65,8 @@ function process_deprecations(lrepo, local_dir)
 end
 
 function clone_and_process(api, repo, auth)
-    with_cloned_repo(x->process_deprecations(x...), api, repo, auth)
+    is_julia_itself = GitHub.name(repo) == "JuliaLang/julia"
+    with_cloned_repo(x->process_deprecations(x...; is_julia_itself=is_julia_itself), api, repo, auth)
 end
 
 function push_repo(api::GitHubWebAPI, repo, auth; force=true)
@@ -126,7 +141,7 @@ function dry_run(repo_url)
         enabled = gc_enable(false)
         lrepo = LibGit2.clone(repo_url, local_dir)
         gc_enable(enabled)
-        process_deprecations(lrepo, local_dir)
+        process_deprecations(lrepo, local_dir; is_julia_itself=contains(repo_url, "JuliaLang/julia"))
     catch e
         bt = catch_backtrace()
         Base.display_error(STDERR, e, bt)
