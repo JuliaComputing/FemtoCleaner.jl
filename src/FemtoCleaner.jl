@@ -80,7 +80,7 @@ end
 function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
     changed_any = process_deprecations(lrepo, local_dir)
     if changed_any
-        LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig)
+        LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig, parent_ids=[LibGit2.GitHash(lrepo, "HEAD")])
         push_repo(api, lrepo, auth)
     end
     if issue_number != 0

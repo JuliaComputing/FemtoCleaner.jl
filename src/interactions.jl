@@ -139,7 +139,7 @@ function pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installat
                 end
                 LibGit2.add!(lrepo, relpath(path, local_dir))
             end
-            LibGit2.commit(lrepo, "Address review comments"; author=commit_sig, committer=commit_sig)
+            LibGit2.commit(lrepo, "Address review comments"; author=commit_sig, committer=commit_sig, parent_ids=[LibGit2.GitHash(lrepo, "HEAD")])
             push_repo(api, lrepo, auth; force = false)
         end
     end
