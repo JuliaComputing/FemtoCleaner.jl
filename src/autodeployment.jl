@@ -11,7 +11,8 @@ end
 function update_repo(api, repo, auth, commit_sig)
     with_cloned_repo(api, repo, auth) do x
         lrepo, local_dir = x
-        changed_any = process_deprecations(lrepo, local_dir)
+        is_julia_itself = GitHub.name(repo) == "JuliaLang/julia"
+        changed_any = process_deprecations(lrepo, local_dir; is_julia_itself=is_julia_itself)
         if !changed_any
             # Close the PR
             pr = first(femtocleaner_prs(api, repo, auth))
