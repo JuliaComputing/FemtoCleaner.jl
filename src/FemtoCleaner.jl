@@ -53,9 +53,9 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
     for (root, dirs, files) in walkdir(local_dir)
         for file in files
             fpath = joinpath(root, file)
-            endswith(fpath, ".jl") || continue
+            (endswith(fpath, ".jl") || endswith(fpath, ".md")) || continue
             # Iterate. Some rewrites may expose others
-            while Deprecations.edit_file(fpath, deps)
+            while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown)
                 changed_any = true
             end
             changed_any && LibGit2.add!(lrepo, relpath(fpath, local_dir))
