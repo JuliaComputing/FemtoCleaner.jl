@@ -26,8 +26,8 @@ function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     end
 end
 
-function with_pr_branch(f, repo, auth)
-    with_cloned_repo(repo, auth) do x
+function with_pr_branch(f, api, repo, auth)
+    with_cloned_repo(api, repo, auth) do x
         LibGit2.branch!(lrepo, "fbot/deps", track=LibGit2.Consts.REMOTE_ORIGIN)
         f(x)
     end
