@@ -50,18 +50,28 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
     end
     deps = Deprecations.applicable_deprecations(vers)
     changed_any = false
+    problematic_files = String[]
     for (root, dirs, files) in walkdir(local_dir)
         for file in files
             fpath = joinpath(root, file)
             (endswith(fpath, ".jl") || endswith(fpath, ".md")) || continue
             # Iterate. Some rewrites may expose others
+            max_iterations = 30
+            exceeded_iterations = false
+            iteration_counter = 1
             while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown)
+                if iteration_counter > max_iterations
+                    exceeded_iterations = true
+                    push!(problematic_files, file)
+                    break
+                end
+                iteration_counter += 1
                 changed_any = true
             end
-            changed_any && LibGit2.add!(lrepo, relpath(fpath, local_dir))
+            changed_any && !(exceeded_iterations) && LibGit2.add!(lrepo, relpath(fpath, local_dir))
         end
     end
-    changed_any
+    changed_any, problematic_files
 end
 
 function push_repo(api::GitHubWebAPI, repo, auth; force=true)
@@ -74,7 +84,7 @@ end
 
 function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, auth; issue_number = 0)
     is_julia_itself = GitHub.name(repo) == "JuliaLang/julia"
-    changed_any = process_deprecations(lrepo, local_dir; is_julia_itself=is_julia_itself)
+    changed_any, problematic_files = process_deprecations(lrepo, local_dir; is_julia_itself=is_julia_itself)
     if changed_any
         LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig, parent_ids=[LibGit2.GitHash(lrepo, "HEAD")])
         push_repo(api, lrepo, auth)
@@ -87,6 +97,14 @@ function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, 
                     :head => "fbot/deps"
                 )
             )
+            if !isempty(problematic_files)
+                create_comment(api, repo, issue_number, :pr, auth=auth, params = Dict(
+                    :body => string("Failed to process the following files: ",
+                                    join("`" .* problematic_files .* "`", ", "),
+                                    ". :(")
+                    )
+                )
+            end
             println("Created pull request for $(GitHub.name(repo))")
         else
             create_comment(api, repo, issue_number, :issue, params = Dict(
@@ -96,9 +114,15 @@ function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, 
         end
     else
         if changed_any
+            body = "I fixed a number of deprecations for you"
+            if !isempty(problematic_files)
+                body *= string(", but I failed to process the following files: ",
+                               join("`" .* problematic_files .* "`", ", "),
+                               ". :(")
+            end
             create_pull_request(api, repo, auth=auth, params = Dict(
                     :title => "Fix deprecations",
-                    :body => "I fixed a number of deprecations for you",
+                    :body => body,
                     :base => get(repo.default_branch),
                     :head => "fbot/deps"
                 )
