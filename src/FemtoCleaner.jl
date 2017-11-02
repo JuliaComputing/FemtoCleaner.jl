@@ -2,7 +2,7 @@ module FemtoCleaner
 
 using GitHub
 using GitHub: GitHubAPI, GitHubWebAPI
-using HttpCommon
+using HTTP
 using Deprecations
 using CSTParser
 using Deprecations: isexpr
@@ -11,6 +11,9 @@ using MbedTLS
 using JSON
 using AbstractTrees: children
 using Base: LibGit2
+
+# Remove when https://github.com/JuliaWeb/HTTP.jl/pull/106 is resolved
+HTTP.escape(v::Symbol) = HTTP.escape(string(v))
 
 function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
@@ -211,7 +214,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
             end
         end
     end
-    return HttpCommon.Response(200)
+    return HTTP.Response(200)
 end
 
 function run_server()
@@ -233,7 +236,7 @@ function run_server()
         Base.invokelatest(event_callback, api, app_name, app_key, app_id,
                           sourcerepo_installation, commit_sig, listener, bug_repository, event)
     end
-    GitHub.run(listener, host=IPv4(0,0,0,0), port=10000+app_id)
+    GitHub.run(listener, IPv4(0,0,0,0), 10000+app_id)
     wait()
 end
 
