@@ -194,3 +194,6 @@ function GitHub.pull_requests(api::FemtoCleanerTestAPI, r::GitHub.Repo; kwargs..
 end
 
 FemtoCleaner.update_existing_repos(FemtoCleanerTestAPI(), test_commit_sig, 1, fake_app_key)
+
+include("dry_runs.jl")
+

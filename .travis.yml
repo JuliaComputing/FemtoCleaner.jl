@@ -7,9 +7,20 @@ julia:
 notifications:
   email: false
 # uncomment the following lines to override the default test script
-#script:
-#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("FemtoCleaner"); Pkg.test("FemtoCleaner"; coverage=true)'
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia -e '
+              Pkg.clone("https://github.com/JuliaComputing/Deprecations.jl");
+              Pkg.clone(pwd()); Pkg.build("FemtoCleaner");
+              Pkg.checkout("AbstractTrees");
+              import JSON;
+              for (pkg, version) in JSON.parse(readstring("dependencies.json"))
+                   LibGit2.with(LibGit2.GitRepo, Pkg.dir(pkg)) do deprepo
+                       LibGit2.checkout!(deprepo, version)
+                   end
+              end;
+              Pkg.test("FemtoCleaner"; coverage=true)
+              '
 after_success:
   # push coverage results to Codecov
   - julia -e 'cd(Pkg.dir("FemtoCleaner")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
