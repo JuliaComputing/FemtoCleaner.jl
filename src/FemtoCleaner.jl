@@ -131,8 +131,9 @@ function apply_deprecations_if_updated(api::GitHubAPI, lrepo, local_dir, before,
     end
 end
 
-function dry_run(repo_url)
+function dry_run(repo_url; show_diff = true)
     local_dir = mktempdir()
+    successful = true
     try
         enabled = gc_enable(false)
         lrepo = LibGit2.clone(repo_url, local_dir)
@@ -141,13 +142,17 @@ function dry_run(repo_url)
     catch e
         bt = catch_backtrace()
         Base.display_error(STDERR, e, bt)
+        successful = false
     finally
-        cd(local_dir) do
-            run(`git status`)
-            run(`git diff --cached`)
+        if show_diff
+            cd(local_dir) do
+                run(`git status`)
+                run(`git diff --cached`)
+            end
         end
         rm(local_dir, force=true, recursive=true)
     end
+    return successful
 end
 
 include("interactions.jl")
