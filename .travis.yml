@@ -19,6 +19,7 @@ script:
                        LibGit2.checkout!(deprepo, version)
                    end
               end;
+              Pkg.resolve();
               Pkg.test("FemtoCleaner"; coverage=true)
               '
 after_success:
