@@ -1,4 +1,5 @@
 {
-    "CSTParser": "401690d2234b50047a6a6274564288db1ed1237a",
-    "Deprecations": "2664ecbd953e7b1917046cba62bb4ca85b1564c6"
+    "CSTParser": "4d6cae92c65aecdeaf22e35a323988e778909cf1",
+    "Deprecations": "ebec5e990d3fef286a1b7cfe3246d58ed76024cd",
+    "Tokenize": "65db7933c987c2337744799870efe638a8f2b1c9"
 }
