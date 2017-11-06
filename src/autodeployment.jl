@@ -25,7 +25,7 @@ function update_repo(api, repo, auth, commit_sig)
         else
             # Diff the new changes against what's already in the PR
             lcommit = LibGit2.GitCommit(lrepo, LibGit2.commit(lrepo, "Fix deprecations"; author=commit_sig, committer=commit_sig, parent_ids=[LibGit2.GitHash(lrepo, "HEAD")]))
-            rbranch = LibGit2.revparse(lrepo, "refs/remotes/origin/fbot/deps")
+            rbranch = LibGit2.GitObject(lrepo, "refs/remotes/origin/fbot/deps")
             diff = LibGit2.diff_tree(lrepo, LibGit2.peel(lcommit), LibGit2.peel(rbranch))
             if count(diff) == 0
                 println("No difference in new patch for $(GitHub.name(repo))")
