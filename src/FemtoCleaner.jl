@@ -58,6 +58,7 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
         for file in files
             fpath = joinpath(root, file)
             (endswith(fpath, ".jl") || endswith(fpath, ".md")) || continue
+            file == "NEWS.md" && continue
             # Iterate. Some rewrites may expose others
             max_iterations = 30
             exceeded_iterations = false
