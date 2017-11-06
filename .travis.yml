@@ -18,6 +18,7 @@ script:
                    LibGit2.with(LibGit2.GitRepo, Pkg.dir(pkg)) do deprepo
                        LibGit2.checkout!(deprepo, version)
                    end
+                   Pkg.pin(pkg)
               end;
               Pkg.resolve();
               Pkg.test("FemtoCleaner"; coverage=true)
