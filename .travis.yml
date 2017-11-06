@@ -17,7 +17,7 @@ script:
               for (pkg, version) in JSON.parse(readstring("dependencies.json"))
                    LibGit2.with(LibGit2.GitRepo, Pkg.dir(pkg)) do deprepo
                        LibGit2.checkout!(deprepo, version)
-                   end
+                   end;
                    Pkg.pin(pkg);
               end;
               Pkg.resolve();
