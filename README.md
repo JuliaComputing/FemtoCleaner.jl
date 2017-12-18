@@ -1,6 +1,6 @@
 # FemtoCleaner
 
-<p align="center"><img src="https://avatars0.githubusercontent.com/in/4123" alt="femtocleaner"></p>
+<p align="center"><img src="https://media.giphy.com/media/uVOTDhb5O5nW0/giphy.gif" alt="serious femtocleaning"></p>
 
 FemtoCleaner cleans your julia projects by upgrading deprecated syntax, removing version compatibility workarounds and anything else that has a unique upgrade path. FemtoCleaner is designed to be as style-preserving as possible. It does not
 perform code formatting. The logic behind recognizing and rewriting deprecated constructs
@@ -61,9 +61,8 @@ repository.
 
 Please note that the license applies to both the source code and your use of the
 publicly hosted version thereof. In particular:
-```
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-```
+
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # Developer Manual
 
@@ -102,7 +101,3 @@ FemtoCleaner source code before every request (simply execute `using Revise` on
 a separate line in the REPL before running FemtoCleaner). By editing the files
 on the server and using GitHub's "Redeliver" option to replay events of interest,
 a quick edit-debug cycle can be achieved.
-
-# Photo Credit
-
-<a href="http://www.freepik.com/free-photos-vectors/business">Business image created by Kjpargeter - Freepik.com</a>
