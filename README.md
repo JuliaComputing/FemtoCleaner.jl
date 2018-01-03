@@ -77,8 +77,8 @@ Pkg.clone("https://github.com/JuliaComputing/FemtoCleaner.jl")
 
 A repository of Julia code can be cleaned using 
 
-```
-FemtoCleaner.cleanrepo(path::String; show_diff = true, delete_local = true)`.
+```jl
+FemtoCleaner.cleanrepo(path::String; show_diff = true, delete_local = true)
 ```
 
 This clones the repo located at `path`, which can be a file system path or a URL, to a temporary directory
