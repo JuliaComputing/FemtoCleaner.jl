@@ -61,18 +61,25 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
             file == "NEWS.md" && continue
             # Iterate. Some rewrites may expose others
             max_iterations = 30
-            exceeded_iterations = false
+            problematic_file = false
             iteration_counter = 1
-            while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown)
-                if iteration_counter > max_iterations
-                    exceeded_iterations = true
-                    push!(problematic_files, file)
-                    break
+            try
+                while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown)
+                    if iteration_counter > max_iterations
+                        warn("Iterations did not converge for file $file")
+                        problematic_file = true
+                        break
+                    end
+                    iteration_counter += 1
+                    changed_any = true
                 end
-                iteration_counter += 1
-                changed_any = true
+            catch e
+                warn("Exception thrown when fixing file $file. Exception was:\n",
+                     sprint(showerror, e))
+                problematic_file = true
             end
-            changed_any && !(exceeded_iterations) && LibGit2.add!(lrepo, relpath(fpath, local_dir))
+            problematic_file && push!(problematic_files, file)
+            changed_any && !problematic_file && LibGit2.add!(lrepo, relpath(fpath, local_dir))
         end
     end
     changed_any, problematic_files
@@ -166,7 +173,8 @@ function dry_run(repo_url; show_diff = true)
         enabled = gc_enable(false)
         lrepo = LibGit2.clone(repo_url, local_dir)
         gc_enable(enabled)
-        process_deprecations(lrepo, local_dir; is_julia_itself=contains(repo_url, "JuliaLang/julia"))
+        changed_any, problematic_files = process_deprecations(lrepo, local_dir; is_julia_itself=contains(repo_url, "JuliaLang/julia"))
+        isempty(problematic_files) || (successful = false)
     catch e
         bt = catch_backtrace()
         Base.display_error(STDERR, e, bt)
