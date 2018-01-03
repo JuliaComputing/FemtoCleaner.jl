@@ -75,7 +75,7 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
                 end
             catch e
                 warn("Exception thrown when fixing file $file. Exception was:\n",
-                     sprint(showerror, e))
+                     sprint(showerror, e, catch_backtrace()))
                 problematic_file = true
             end
             problematic_file && push!(problematic_files, file)
