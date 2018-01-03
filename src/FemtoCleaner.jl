@@ -166,13 +166,15 @@ function apply_deprecations_if_updated(api::GitHubAPI, lrepo, local_dir, before,
     end
 end
 
-function dry_run(repo_url; show_diff = true)
+function cleanrepo(repo_url; show_diff = true, delete_local = true)
     local_dir = mktempdir()
     successful = true
     try
         enabled = gc_enable(false)
+        info("Cloning $repo_url to $local_dir...")
         lrepo = LibGit2.clone(repo_url, local_dir)
         gc_enable(enabled)
+        info("Processing deprecations...")
         changed_any, problematic_files = process_deprecations(lrepo, local_dir; is_julia_itself=contains(repo_url, "JuliaLang/julia"))
         isempty(problematic_files) || (successful = false)
     catch e
@@ -186,7 +188,10 @@ function dry_run(repo_url; show_diff = true)
                 run(`git diff --cached`)
             end
         end
-        rm(local_dir, force=true, recursive=true)
+        if delete_local
+            info("Deleting cloned repo from $local_dir...")
+            rm(local_dir, force=true, recursive=true)
+        end
     end
     return successful
 end
