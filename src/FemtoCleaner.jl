@@ -58,6 +58,14 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
     deps = deprecations_for_repo(lrepo, local_dir, is_julia_itself)
     changed_any = false
     problematic_files = String[]
+    all_files = String[]
+    for (root, dirs, files) in walkdir(local_dir)
+        for file in files
+            endswith(file, ".jl") || continue
+            push!(all_files, joinpath(root, file))
+        end
+    end
+    analysis = Deprecations.process_all(all_files)
     for (root, dirs, files) in walkdir(local_dir)
         for file in files
             fpath = joinpath(root, file)
@@ -67,8 +75,10 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
             max_iterations = 30
             problematic_file = false
             iteration_counter = 1
+            file_analysis = endswith(fpath, ".jl") ? (analysis[1], analysis[2][fpath]) : nothing
             try
-                while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown)
+                while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown;
+                        analysis = file_analysis)
                     if iteration_counter > max_iterations
                         warn("Iterations did not converge for file $file")
                         problematic_file = true
