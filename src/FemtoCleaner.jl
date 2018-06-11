@@ -116,7 +116,7 @@ Base.length(file::SourceFile) = length(file.offsets)
 function SourceFile(data)
     offsets = UInt64[0]
     buf = IOBuffer(data)
-    local line
+    local line = ""
     while !eof(buf)
         line = readuntil(buf,'\n')
         !eof(buf) && push!(offsets, position(buf))
@@ -137,7 +137,7 @@ function Base.getindex(file::SourceFile, line::Int)
         return file.data[(file.offsets[end]+1):end]
     else
         # - 1 to skip the '\n'
-        return file.data[(file.offsets[line]+1):(file.offsets[line+1]-1)]
+        return file.data[(file.offsets[line]+1):max(1, file.offsets[line+1]-1)]
     end
 end
 Base.getindex(file::SourceFile, arr::AbstractArray) = [file[x] for x in arr]
