@@ -43,11 +43,11 @@ function update_repo(api, repo, auth, commit_sig)
     end
 end
 
-function update_existing_repos(api, commit_sig, app_id, app_key)
-    for inst in installations(api, GitHub.JWTAuth(app_id, app_key))[1]
+function update_existing_repos(api, commit_sig, app_id)
+    for inst in installations(api, get_auth(app_id))[1]
         try
             repos_with_open_prs = Repo[]
-            auth = create_access_token(api, inst, GitHub.JWTAuth(app_id, app_key))
+            auth = create_access_token(api, inst, get_auth(app_id))
             irepos, _ = repos(api, inst; auth=auth)
             has_open_prs(repo) = !isempty(femtocleaner_prs(api, repo, auth))
             append!(repos_with_open_prs, filter(has_open_prs, irepos))

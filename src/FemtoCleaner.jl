@@ -487,12 +487,14 @@ function run_server()
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
     api = GitHub.DEFAULT_API
-    #@async update_existing_repos(api, commit_sig, app_id, app_key)
     local listener
     if nprocs() != 1
         #@everywhere filter(x->x != 1, procs()) worker_loop()
         for p in filter(x->x != 1, procs())
-            @spawnat p worker_loop()
+            @spawnat p begin
+                myid() == 2 && update_existing_repos(api, commit_sig, app_id)
+                worker_loop()
+            end
         end
     end
     listener = GitHub.EventListener(secret=secret) do event
