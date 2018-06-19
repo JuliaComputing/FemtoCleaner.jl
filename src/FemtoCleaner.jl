@@ -3,6 +3,7 @@ module FemtoCleaner
 # For interactive development
 using Revise
 
+using Base.Distributed
 using GitHub
 using GitHub: GitHubAPI, GitHubWebAPI, Checks
 using HTTP
@@ -13,6 +14,8 @@ using MbedTLS
 using JSON
 using AbstractTrees: children
 using Base: LibGit2
+
+include("workqueue.jl")
 
 function with_cloned_repo(f, api::GitHubWebAPI, repo, auth)
     creds = LibGit2.UserPasswordCredentials(String(copy(Vector{UInt8}("x-access-token"))), String(copy(Vector{UInt8}(auth.token))))
@@ -319,11 +322,22 @@ include("autodeployment.jl")
 const autodeployment_enabled = haskey(ENV, "FEMTOCLEANER_AUTODEPLOY") ?
     ENV["FEMTOCLEANER_AUTODEPLOY"] == "yes" : false
 
-function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_installation,
+let app_key = Ref{Any}(nothing)
+    global get_auth
+    function get_auth(app_id)
+        if app_key[] == nothing
+            app_key[] = MbedTLS.PKContext()
+            MbedTLS.parse_key!(app_key[], haskey(ENV, "FEMTOCLEANER_PRIVKEY") ? ENV["FEMTOCLEANER_PRIVKEY"] : readstring(joinpath(dirname(@__FILE__),"..","privkey.pem")))
+        end
+        GitHub.JWTAuth(app_id, app_key[])
+    end
+end
+
+function event_callback(api::GitHubAPI, app_name, app_id, sourcerepo_installation,
                         commit_sig, listener, bug_repository, event)
     # On installation, process every repository we just got installed into
     if event.kind == "installation"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories"]
@@ -333,7 +347,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
             end
         end
     elseif event.kind == "check_run"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         if event.payload["action"] == "requested_action" && event.payload["requested_action"]["identifier"] == "fix"
@@ -354,7 +368,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
         if !(event.payload["action"] in ("opened", "reopened", "synchronize"))
             return HTTP.Response(200)
         end
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         repo = Repo(event.payload["repository"])
@@ -419,7 +433,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
             ))
         end
     elseif event.kind == "installation_repositories"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         for repo in event.payload["repositories_added"]
@@ -429,10 +443,10 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
             end
         end
     elseif event.kind == "pull_request_review"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installation, bug_repository)
     elseif event.kind == "push"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         installation = Installation(event.payload["installation"])
         auth = create_access_token(api, installation, jwt)
         repo = Repo(event.payload["repository"])
@@ -449,7 +463,7 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
         end
         maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, autodeployment_enabled)
     elseif event.kind == "issues" && event.payload["action"] == "opened"
-        jwt = GitHub.JWTAuth(app_id, app_key)
+        jwt = get_auth(app_id)
         iss = Issue(event.payload["issue"])
         repo = Repo(event.payload["repository"])
         installation = Installation(event.payload["installation"])
@@ -464,23 +478,30 @@ function event_callback(api::GitHubAPI, app_name, app_key, app_id, sourcerepo_in
 end
 
 function run_server()
-    app_key = MbedTLS.PKContext()
-    MbedTLS.parse_key!(app_key, haskey(ENV, "FEMTOCLEANER_PRIVKEY") ? ENV["FEMTOCLEANER_PRIVKEY"] : readstring(joinpath(dirname(@__FILE__),"..","privkey.pem")))
     app_id = parse(Int, strip(haskey(ENV, "FEMTOCLEANER_APPID") ? ENV["FEMTOCLEANER_APPID"] : readstring(joinpath(dirname(@__FILE__),"..","app_id"))))
     secret = haskey(ENV, "FEMTOCLEANER_SECRET") ? ENV["FEMTOCLEANER_SECRET"] : nothing
     sourcerepo_installation = haskey(ENV, "FEMTOCLEANER_INSTALLATION") ? parse(Int, ENV["FEMTOCLEANER_INSTALLATION"]) : 0
     bug_repository = haskey(ENV, "FEMTOCLEANER_BUGREPO") ? ENV["FEMTOCLEANER_BUGREPO"] : ""
     (secret == nothing) && warn("Webhook secret not set. All events will be accepted. This is an insecure configuration!")
-    jwt = GitHub.JWTAuth(app_id, app_key)
+    jwt = get_auth(app_id)
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
     api = GitHub.DEFAULT_API
     #@async update_existing_repos(api, commit_sig, app_id, app_key)
     local listener
+    if nprocs() != 1
+        #@everywhere filter(x->x != 1, procs()) worker_loop()
+        for p in filter(x->x != 1, procs())
+            @spawnat p worker_loop()
+        end
+    end
     listener = GitHub.EventListener(secret=secret) do event
-        revise()
-        Base.invokelatest(event_callback, api, app_name, app_key, app_id,
-                          sourcerepo_installation, commit_sig, listener, bug_repository, event)
+        queue() do
+            revise()
+            Base.invokelatest(event_callback, api, app_name, app_id,
+                              sourcerepo_installation, commit_sig, listener, bug_repository, event)
+        end
+        HTTP.Response(200)
     end
     GitHub.run(listener, IPv4(0,0,0,0), 10000+app_id)
     wait()
