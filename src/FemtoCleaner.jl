@@ -124,7 +124,7 @@ function SourceFile(data)
         line = readuntil(buf,'\n')
         !eof(buf) && push!(offsets, position(buf))
     end
-    if !isempty(offsets) && line[end] == '\n'
+    if !isempty(line) && line[end] == '\n'
         push!(offsets, position(buf)+1)
     end
     SourceFile(data,offsets)
