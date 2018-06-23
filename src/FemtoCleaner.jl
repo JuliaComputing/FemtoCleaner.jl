@@ -429,7 +429,8 @@ function event_callback(api::GitHubAPI, app_name, app_id, sourcerepo_installatio
             append!(output.annotations, annotations[max_annotation+1:min(max_annotation+50, end)])
             max_annotation += 50
             GitHub.update_check_run(api, repo, get(cr.id), auth=auth, params = Dict(
-                :output => output
+                :output => output,
+                :actions => actions
             ))
         end
     elseif event.kind == "installation_repositories"
