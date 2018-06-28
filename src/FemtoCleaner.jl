@@ -62,32 +62,35 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
     changed_any = false
     problematic_files = String[]
     all_files = String[]
-    for (root, dirs, files) in walkdir(local_dir)
-        for file in files
-            endswith(file, ".jl") || continue
-            push!(all_files, joinpath(root, file))
-        end
-    end
-    analysis = Deprecations.process_all(all_files)
+    all_files = String[]
     for (root, dirs, files) in walkdir(local_dir)
         for file in files
             fpath = joinpath(root, file)
             (endswith(fpath, ".jl") || endswith(fpath, ".md")) || continue
             file == "NEWS.md" && continue
-            # Iterate. Some rewrites may expose others
-            max_iterations = 30
+            push!(all_files, fpath)
+        end
+    end
+    max_iterations = 30
+    iteration_counter = fill(0, length(all_files))
+    # Iterate. Some rewrites may expose others
+    while any(x->x != -1, iteration_counter)
+        # We need to redo the analysis after every fetmocleaning round, since
+        # things may have changes as the result of an applied rewrite.
+        analysis = Deprecations.process_all(filter(f->endswith(f, ".jl"), all_files))
+        for (i, fpath) in enumerate(all_files)
             problematic_file = false
-            iteration_counter = 1
             file_analysis = endswith(fpath, ".jl") ? (analysis[1], analysis[2][fpath]) : nothing
             try
-                while Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown;
+                if !Deprecations.edit_file(fpath, deps, endswith(fpath, ".jl") ? edit_text : edit_markdown;
                         analysis = file_analysis)
-                    if iteration_counter > max_iterations
-                        warn("Iterations did not converge for file $file")
-                        problematic_file = true
-                        break
-                    end
-                    iteration_counter += 1
+                    # Nothing to change
+                    iteration_counter[i] = -1
+                elseif iteration_counter[i] > max_iterations
+                    warn("Iterations did not converge for file $file")
+                    problematic_file = true
+                else
+                    iteration_counter[i] += 1
                     changed_any = true
                 end
             catch e
@@ -95,7 +98,10 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
                      sprint(showerror, e, catch_backtrace()))
                 problematic_file = true
             end
-            problematic_file && push!(problematic_files, file)
+            if problematic_file
+                push!(problematic_files, file)
+                iteration_counter[i] = -1
+            end
             changed_any && !problematic_file && LibGit2.add!(lrepo, relpath(fpath, local_dir))
         end
     end
