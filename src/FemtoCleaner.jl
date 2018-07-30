@@ -57,8 +57,7 @@ function deprecations_for_repo(lrepo, local_dir, is_julia_itself)
 
 end
 
-function process_deprecations(lrepo, local_dir; is_julia_itself=false)
-    deps = deprecations_for_repo(lrepo, local_dir, is_julia_itself)
+function process_deprecations(lrepo, local_dir; is_julia_itself=false, deps = deprecations_for_repo(lrepo, local_dir, is_julia_itself))
     changed_any = false
     problematic_files = String[]
     all_files = String[]
@@ -79,6 +78,7 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
         # things may have changes as the result of an applied rewrite.
         analysis = Deprecations.process_all(filter(f->endswith(f, ".jl"), all_files))
         for (i, fpath) in enumerate(all_files)
+            iteration_counter[i] == -1 && continue
             problematic_file = false
             file_analysis = endswith(fpath, ".jl") ? (analysis[1], analysis[2][fpath]) : nothing
             try
@@ -87,14 +87,14 @@ function process_deprecations(lrepo, local_dir; is_julia_itself=false)
                     # Nothing to change
                     iteration_counter[i] = -1
                 elseif iteration_counter[i] > max_iterations
-                    warn("Iterations did not converge for file $file")
+                    warn("Iterations did not converge for file $fpath")
                     problematic_file = true
                 else
                     iteration_counter[i] += 1
                     changed_any = true
                 end
             catch e
-                warn("Exception thrown when fixing file $file. Exception was:\n",
+                warn("Exception thrown when fixing file $fpath. Exception was:\n",
                      sprint(showerror, e, catch_backtrace()))
                 problematic_file = true
             end
