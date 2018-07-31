@@ -1,4 +1,6 @@
 # FemtoCleaner
+[How to use FemotoCleaner to update packages for julia 0.7](https://discourse.julialang.org/t/femtocleaner-usage-howto/11762)
+
 
 <p align="center"><img src="https://media.giphy.com/media/uVOTDhb5O5nW0/giphy.gif" alt="serious femtocleaning"></p>
 
