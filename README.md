@@ -9,7 +9,7 @@ which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under t
 
 # User Manual
 
-To set up FemtoCleaner on your repository, go to https://github.com/integration/femtocleaner and click "Configure" to select the repositories you wish to add.
+To set up FemtoCleaner on your repository, go to https://github.com/apps/femtocleaner and click "Configure" to select the repositories you wish to add.
 
 ## Invoking FemtoCleaner
 
