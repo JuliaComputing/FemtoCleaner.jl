@@ -2,15 +2,21 @@
 language: julia
 os:
   - linux
+  - osx
+  - windows
 julia:
-  - 0.6
+  - 1.0
+  - nightly
+matrix:
+  allow_failures:
+    - julia: nightly
+  fast_finish: true
 notifications:
-  email: false
-# uncomment the following lines to override the default test script
+  email: falseript
 script:
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - julia -e '
-              Pkg.clone("https://github.com/JuliaComputing/Deprecations.jl");
+              Pkg.clone("https://github.com/aminya/Deprecations.jl");
               Pkg.clone(pwd()); Pkg.build("FemtoCleaner");
               Pkg.checkout("AbstractTrees");
               import JSON;
