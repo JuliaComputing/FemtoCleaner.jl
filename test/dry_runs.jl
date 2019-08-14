@@ -1,5 +1,5 @@
 import FemtoCleaner
-using Base.Test
+using Test
 
 println("Dry running DataFrames")
 @test FemtoCleaner.cleanrepo("https://github.com/JuliaData/DataFrames.jl"; show_diff = false)

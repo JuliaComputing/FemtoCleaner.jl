@@ -22,7 +22,7 @@ function first_expr_in_range(tree, range)
 end
 
 function with_node_at_line(f, path, line)
-    text = readstring(path)
+    text = read(path, String)
     p = Deprecations.overlay_parse(text, true)
     @assert !isexpr(p, CSTParser.ERROR)
     range = byte_range_for_line(text, line)
@@ -130,7 +130,7 @@ function pr_response(api, event, jwt, commit_sig, app_name, sourcerepo_installat
             end
             paths = unique(map(r->r.path, resolutions))
             for path in paths
-                text = readstring(joinpath(local_dir, path))
+                text = read(joinpath(local_dir, path), String)
                 open(joinpath(local_dir, path), "w") do f
                     changes = collect(map(x->x.repl,
                         filter(x->x.path == path, resolutions)))

@@ -12,7 +12,7 @@ function worker_loop()
             end)()
         catch e
             bt = catch_backtrace()
-            Base.showerror(STDERR, e, bt)
+            Base.showerror(stderr, e, bt)
         end
     end
 end

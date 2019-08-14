@@ -1,5 +1,5 @@
 using FemtoCleaner
-using Base.Test
+using Test
 using GitHub
 using GitHub: WebhookEvent, GitHubAPI
 
@@ -77,8 +77,8 @@ end
 
 
 fake_app_key = MbedTLS.PKContext()
-MbedTLS.parse_key!(fake_app_key, readstring(
-    joinpath(Pkg.dir("GitHub","test"), "not_a_real_key.pem")))
+MbedTLS.parse_key!(fake_app_key, read(
+    joinpath(Pkg.dir("GitHub","test"), "not_a_real_key.pem"), String))
 app_name = "femtocleaner-test"
 test_commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")
 
