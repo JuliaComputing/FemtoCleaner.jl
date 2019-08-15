@@ -3,7 +3,7 @@ module FemtoCleaner
 # For interactive development
 using Revise
 
-using Base.Distributed
+using Distributed
 using GitHub
 using GitHub: GitHubAPI, GitHubWebAPI, Checks
 using HTTP
