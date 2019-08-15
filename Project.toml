@@ -11,6 +11,7 @@ Deprecations = "687c44b0-beea-11e9-3666-0b52fd97bbca"
 CSTParser = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
 GitHub="bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
 Revise="295af30f-e4ad-537b-8983-00126c2a3abe"
+HTTP="cd3eb016-35fb-5094-929b-558a96fad6f3"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
