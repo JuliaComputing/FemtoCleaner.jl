@@ -1,6 +1,10 @@
 # FemtoCleaner
 This pull request is under development for Julia 1.0. Use https://github.com/aminya/FemtoCleaner.jl for running locally on Julia 0.6.4
-
+To add this current developing package:
+```julia
+] add https://github.com/aminya/Deprecations.jl
+] add https://github.com/aminya/FemtoCleaner.jl.git#Amin_Julia1
+```
 
 <p align="center"><img src="https://media.giphy.com/media/uVOTDhb5O5nW0/giphy.gif" alt="serious femtocleaning"></p>
 
