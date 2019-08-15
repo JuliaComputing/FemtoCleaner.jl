@@ -56,7 +56,7 @@ function update_existing_repos(api, commit_sig, app_id)
             end
         catch e
             bt = catch_backtrace()
-            Base.display_error(STDERR, e, bt)
+            Base.display_error(stderr, e, bt)
         end
     end
 end
@@ -67,22 +67,22 @@ function maybe_autdodeploy(event, listener, jwt, sourcerepo_installation, enable
     (GitHub.name(repo) == "JuliaComputing/FemtoCleaner.jl") || return
     (event.payload["ref"] == "refs/heads/master") || return
     if !enabled
-        warn("Push event received, but auto deployment is disabled")
+        @warn("Push event received, but auto deployment is disabled")
         return
     end
-    info("Commencing auto deployment")
+    @info("Commencing auto deployment")
     with(GitRepo, Pkg.dir("FemtoCleaner")) do repo
         LibGit2.fetch(repo)
         ahead_remote, ahead_local = LibGit2.revcount(repo, "origin/master", "master")
         rcount = min(ahead_remote, ahead_local)
         if ahead_local-rcount > 0
-            warn("Local repository has more commits that origin. Aborting")
+            @warn("Local repository has more commits that origin. Aborting")
             return false
         end
         # Shut down the server, so the new process can replace it
         close(listener.server)
         LibGit2.reset!(repo, LibGit2.GitHash(event.payload["after"]), LibGit2.Consts.RESET_HARD)
-        for (pkg, version) in JSON.parse(readstring(joinpath(dirname(@__FILE__),"..","dependencies.json")))
+        for (pkg, version) in JSON.parse(read(joinpath(dirname(@__FILE__),"..","dependencies.json"), String))
             with(GitRepo, Pkg.dir(pkg)) do deprepo
                 for remote in LibGit2.remotes(deprepo)
                     LibGit2.fetch(deprepo; remote=remote)

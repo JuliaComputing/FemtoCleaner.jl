@@ -3,7 +3,7 @@ module FemtoCleaner
 # For interactive development
 using Revise
 
-using Base.Distributed
+using Distributed
 using GitHub
 using GitHub: GitHubAPI, GitHubWebAPI, Checks
 using HTTP
@@ -38,15 +38,11 @@ function with_pr_branch(f, api, repo, auth)
     end
 end
 
-if VERSION < v"0.7.0-DEV.695"
-    include("blame.jl")
-else
-    using LibGit2: GitBlame
-end
+using LibGit2: GitBlame
 
 function deprecations_for_repo(lrepo, local_dir, is_julia_itself)
     if is_julia_itself
-        ver = readstring(joinpath(local_dir, "VERSION"))
+        ver = read(joinpath(local_dir, "VERSION"), String)
         hunk = GitBlame(lrepo, "VERSION")[1]
         l, r = LibGit2.revcount(lrepo, string(hunk.orig_commit_id), "HEAD")
         vers = Pkg.Reqs.parse(IOBuffer("julia $ver+$(l+r)"))
@@ -181,7 +177,7 @@ function collect_deprecation_annotations(api::GitHubAPI, lrepo, local_dir, repo,
             fpath = joinpath(root, file)
             (endswith(fpath, ".jl") || endswith(fpath, ".md")) || continue
             file == "NEWS.md" && continue
-            contents = readstring(fpath)
+            contents = read(fpath, String)
             sfile = SourceFile(contents)
             problematic_file = false
             try
@@ -272,9 +268,9 @@ function apply_deprecations(api::GitHubAPI, lrepo, local_dir, commit_sig, repo, 
 end
 
 function my_diff_tree(repo::LibGit2.GitRepo, oldtree::LibGit2.GitTree, newtree::LibGit2.GitTree; pathspecs::AbstractString="")
-    diff_ptr_ptr = Ref{Ptr{Void}}(C_NULL)
+    diff_ptr_ptr = Ref{Ptr{Cvoid}}(C_NULL)
     @LibGit2.check ccall((:git_diff_tree_to_tree, :libgit2), Cint,
-                  (Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void}, Ptr{Void}, Ptr{LibGit2.DiffOptionsStruct}),
+                  (Ptr{Ptr{Cvoid}}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{LibGit2.DiffOptionsStruct}),
                    diff_ptr_ptr, repo.ptr, oldtree.ptr, newtree.ptr, isempty(pathspecs) ? C_NULL : pathspecs)
     return LibGit2.GitDiff(repo, diff_ptr_ptr[])
 end
@@ -300,12 +296,12 @@ function cleanrepo(repo_url; show_diff = true, delete_local = true)
         info("Cloning $repo_url to $local_dir...")
         lrepo = LibGit2.clone(repo_url, local_dir)
         gc_enable(enabled)
-        info("Processing deprecations...")
+        @info("Processing deprecations...")
         changed_any, problematic_files = process_deprecations(lrepo, local_dir; is_julia_itself=contains(repo_url, "JuliaLang/julia"))
         isempty(problematic_files) || (successful = false)
     catch e
         bt = catch_backtrace()
-        Base.display_error(STDERR, e, bt)
+        Base.display_error(stderr, e, bt)
         successful = false
     finally
         if show_diff
@@ -333,7 +329,7 @@ let app_key = Ref{Any}(nothing)
     function get_auth(app_id)
         if app_key[] == nothing
             app_key[] = MbedTLS.PKContext()
-            MbedTLS.parse_key!(app_key[], haskey(ENV, "FEMTOCLEANER_PRIVKEY") ? ENV["FEMTOCLEANER_PRIVKEY"] : readstring(joinpath(dirname(@__FILE__),"..","privkey.pem")))
+            MbedTLS.parse_key!(app_key[], haskey(ENV, "FEMTOCLEANER_PRIVKEY") ? ENV["FEMTOCLEANER_PRIVKEY"] : read(joinpath(dirname(@__FILE__),"..","privkey.pem"), String))
         end
         GitHub.JWTAuth(app_id, app_key[])
     end
@@ -485,11 +481,11 @@ function event_callback(api::GitHubAPI, app_name, app_id, sourcerepo_installatio
 end
 
 function run_server()
-    app_id = parse(Int, strip(haskey(ENV, "FEMTOCLEANER_APPID") ? ENV["FEMTOCLEANER_APPID"] : readstring(joinpath(dirname(@__FILE__),"..","app_id"))))
+    app_id = parse(Int, strip(haskey(ENV, "FEMTOCLEANER_APPID") ? ENV["FEMTOCLEANER_APPID"] : read(joinpath(dirname(@__FILE__),"..","app_id"), String)))
     secret = haskey(ENV, "FEMTOCLEANER_SECRET") ? ENV["FEMTOCLEANER_SECRET"] : nothing
     sourcerepo_installation = haskey(ENV, "FEMTOCLEANER_INSTALLATION") ? parse(Int, ENV["FEMTOCLEANER_INSTALLATION"]) : 0
     bug_repository = haskey(ENV, "FEMTOCLEANER_BUGREPO") ? ENV["FEMTOCLEANER_BUGREPO"] : ""
-    (secret == nothing) && warn("Webhook secret not set. All events will be accepted. This is an insecure configuration!")
+    (secret == nothing) && @warn("Webhook secret not set. All events will be accepted. This is an insecure configuration!")
     jwt = get_auth(app_id)
     app_name = get(GitHub.app(; auth=jwt).name)
     commit_sig = LibGit2.Signature("$(app_name)[bot]", "$(app_name)[bot]@users.noreply.github.com")

@@ -23,8 +23,8 @@ for (typ, owntyp, sup, cname) in [
 
     if owntyp === nothing
         @eval mutable struct $typ <: $sup
-            ptr::Ptr{Void}
-            function $typ(ptr::Ptr{Void}, fin::Bool=true)
+            ptr::Ptr{Cvoid}
+            function $typ(ptr::Ptr{Cvoid}, fin::Bool=true)
                 # fin=false should only be used when the pointer should not be free'd
                 # e.g. from within callback functions which are passed a pointer
                 @assert ptr != C_NULL
@@ -39,8 +39,8 @@ for (typ, owntyp, sup, cname) in [
     else
         @eval mutable struct $typ <: $sup
             owner::$owntyp
-            ptr::Ptr{Void}
-            function $typ(owner::$owntyp, ptr::Ptr{Void}, fin::Bool=true)
+            ptr::Ptr{Cvoid}
+            function $typ(owner::$owntyp, ptr::Ptr{Cvoid}, fin::Bool=true)
                 @assert ptr != C_NULL
                 obj = new(owner, ptr)
                 if fin
@@ -52,15 +52,15 @@ for (typ, owntyp, sup, cname) in [
         end
         if isa(owntyp, Expr) && owntyp.args[1] == :Nullable
             @eval begin
-                $typ(ptr::Ptr{Void}, fin::Bool=true) = $typ($owntyp(), ptr, fin)
-                $typ(owner::$(owntyp.args[2]), ptr::Ptr{Void}, fin::Bool=true) =
+                $typ(ptr::Ptr{Cvoid}, fin::Bool=true) = $typ($owntyp(), ptr, fin)
+                $typ(owner::$(owntyp.args[2]), ptr::Ptr{Cvoid}, fin::Bool=true) =
                     $typ($owntyp(owner), ptr, fin)
             end
         end
     end
     @eval function Base.close(obj::$typ)
         if obj.ptr != C_NULL
-            ccall(($(string(cname, :_free)), :libgit2), Void, (Ptr{Void},), obj.ptr)
+            ccall(($(string(cname, :_free)), :libgit2), Cvoid, (Ptr{Cvoid},), obj.ptr)
             obj.ptr = C_NULL
             if Threads.atomic_sub!(REFCOUNT, UInt(1)) == 1
                 # will the last finalizer please turn out the lights?
@@ -108,15 +108,15 @@ The fields represent:
 end
 
 function GitBlame(repo::GitRepo, path::AbstractString; options::BlameOptions=BlameOptions())
-    blame_ptr_ptr = Ref{Ptr{Void}}(C_NULL)
+    blame_ptr_ptr = Ref{Ptr{Cvoid}}(C_NULL)
     @Base.LibGit2.check ccall((:git_blame_file, :libgit2), Cint,
-                  (Ptr{Ptr{Void}}, Ptr{Void}, Cstring, Ptr{BlameOptions}),
+                  (Ptr{Ptr{Cvoid}}, Ptr{Cvoid}, Cstring, Ptr{BlameOptions}),
                    blame_ptr_ptr, repo.ptr, path, Ref(options))
     return GitBlame(repo, blame_ptr_ptr[])
 end
 
 function counthunks(blame::GitBlame)
-    return ccall((:git_blame_get_hunk_count, :libgit2), Int32, (Ptr{Void},), blame.ptr)
+    return ccall((:git_blame_get_hunk_count, :libgit2), Int32, (Ptr{Cvoid},), blame.ptr)
 end
 
 function Base.getindex(blame::GitBlame, i::Integer)
@@ -125,7 +125,7 @@ function Base.getindex(blame::GitBlame, i::Integer)
     end
     hunk_ptr = ccall((:git_blame_get_hunk_byindex, :libgit2),
                       Ptr{BlameHunk},
-                      (Ptr{Void}, Csize_t), blame.ptr, i-1)
+                      (Ptr{Cvoid}, Csize_t), blame.ptr, i-1)
     return unsafe_load(hunk_ptr)
 end
 
