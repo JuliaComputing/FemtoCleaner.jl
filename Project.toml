@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [compat]
 julia = "1"
-CSTParser="0.4"
+CSTParser="0.5"
 
 [deps]
 Deprecations = "687c44b0-beea-11e9-3666-0b52fd97bbca"
