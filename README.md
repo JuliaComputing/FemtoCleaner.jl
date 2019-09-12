@@ -8,8 +8,9 @@ can be found in the [Deprecations.jl](https://github.com/JuliaComputing/Deprecat
 which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under the hood.
 
 # User Manual
+To set up FemtoCleaner on your repository, go to https://github.com/apps/femtocleaner and click "install". You can select specific repo's to install FemtoCleaner into or install it into all of your repo's. 
 
-To set up FemtoCleaner on your repository, go to https://github.com/integration/femtocleaner and click "Configure" to select the repositories you wish to add.
+Once installed, you can always change which repo's FemtoCleaner is installed in by going back to https://github.com/apps/femtocleaner.
 
 ## Invoking FemtoCleaner
 
