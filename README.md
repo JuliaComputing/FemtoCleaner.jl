@@ -9,7 +9,7 @@ which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under t
 
 ## Running FemtoCleaner locally
 
-It is possible to run FemtoCleaner locally (to fix, for example, deprecations in a private repository).
+It is recommended to run FemtoCleaner locally (to fix, for example, deprecations in a private repository). The online app is abandoned.
 
 Install `FemtoCleaner` (currently working on Julia v0.6.x only https://julialang.org/downloads/oldreleases.html ) using
 
