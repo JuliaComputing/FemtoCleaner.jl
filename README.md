@@ -7,9 +7,39 @@ perform code formatting. The logic behind recognizing and rewriting deprecated c
 can be found in the [Deprecations.jl](https://github.com/JuliaComputing/Deprecations.jl) package,
 which makes use of [CSTParser.jl](https://github.com/ZacLN/CSTParser.jl) under the hood.
 
+## Running FemtoCleaner locally
+
+It is recommended to run FemtoCleaner locally (to fix, for example, deprecations in a private repository). The online app is abandoned.
+
+Install `FemtoCleaner` (currently working on Julia v0.6.x only https://julialang.org/downloads/oldreleases.html ) using
+
+```jl
+Pkg.clone("https://github.com/Keno/AbstractTrees.jl")
+Pkg.checkout("AbstractTrees.jl","kf/for06")
+Pkg.clone("https://github.com/JuliaComputing/Deprecations.jl")
+Pkg.clone("https://github.com/JuliaComputing/FemtoCleaner.jl")
+using FemtoCleaner
+```
+
+A repository of Julia code can be cleaned using 
+
+```jl
+using FemtoCleaner
+FemtoCleaner.cleanrepo(path::String, show_diff = true, delete_local = true)
+```
+For example on Windows:
+```jl
+using FemtoCleaner
+FemtoCleaner.cleanrepo("C:\\repositoryFolder", show_diff = true, delete_local = true)
+```
+
+This clones the repo located at `path`, which can be a file system path or a URL, to a temporary directory
+and fix the deprecations. If `show_diff` is `true`, the diff from applying the deprecations is showed.
+If `delete_local` is `true` the cleaned repo, is deleted when the function is finished.
+
 # User Manual
 
-To set up FemtoCleaner on your repository, go to https://github.com/integration/femtocleaner and click "Configure" to select the repositories you wish to add.
+To set up FemtoCleaner on your repository, go to https://github.com/apps/femtocleaner and click "Configure" to select the repositories you wish to add.
 
 ## Invoking FemtoCleaner
 
@@ -64,27 +94,6 @@ publicly hosted version thereof. In particular:
 
 > THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-## Running FemtoCleaner locally
-
-It is possible to run FemtoCleaner locally (to fix, for example, deprecations in a private repository).
-
-Install `FemtoCleaner` (currently working on Julia v0.6.x only) using
-
-```jl
-Pkg.clone("https://github.com/Keno/AbstractTrees.jl")
-Pkg.clone("https://github.com/JuliaComputing/Deprecations.jl")
-Pkg.clone("https://github.com/JuliaComputing/FemtoCleaner.jl")
-```
-
-A repository of Julia code can be cleaned using 
-
-```jl
-FemtoCleaner.cleanrepo(path::String; show_diff = true, delete_local = true)
-```
-
-This clones the repo located at `path`, which can be a file system path or a URL, to a temporary directory
-and fix the deprecations. If `show_diff` is `true`, the diff from applying the deprecations is showed.
-If `delete_local` is `true` the cleaned repo, is deleted when the function is finished.
 
 # Developer Manual
 
